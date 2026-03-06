@@ -1,13 +1,21 @@
 import React, { useState } from 'react';
-import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, useLocation, Navigate } from 'react-router-dom';
+import { useAuth } from './contexts/AuthContext';
 import Header from './components/Header';
 import PartnersPage from './pages/PartnersPage';
-import DashboardPage from './pages/DashboardPage';
+import VendorDashboard from './pages/VendorDashboard';
+import BuyerDashboard from './pages/BuyerDashboard';
 import AdminDashboard from './pages/AdminDashboard';
 import CartPage from './pages/CartPage';
-import AuthPages from './pages/AuthPages';
+import BuyerLogin from './pages/BuyerLogin';
+import VendorLogin from './pages/VendorLogin';
 import VendorSetupPage from './pages/VendorSetupPage';
 import ProfilePage from './pages/ProfilePage';
+import ShopPage from './pages/ShopPage';
+import OrdersPage from './pages/OrdersPage';
+import CheckoutPage from './pages/CheckoutPage';
+import ProductDetailsPage from './pages/ProductDetailsPage';
+import AdminLogin from './pages/AdminLogin';
 import ChatbotWidget from './components/ChatbotWidget';
 import ProtectedRoute from './components/ProtectedRoute';
 import { AuthProvider } from './contexts/AuthContext';
@@ -15,20 +23,44 @@ import { CartProvider } from './contexts/CartContext';
 import './index.css';
 
 const AppContent = () => {
+  const { user } = useAuth();
   const location = useLocation();
-  const isAuthPage = location.pathname === '/login' || location.pathname === '/register' || location.pathname === '/signup';
+
+  const isAuthPage =
+    location.pathname === '/login' ||
+    location.pathname === '/register' ||
+    location.pathname === '/buyer/login' ||
+    location.pathname === '/vendor/login' ||
+    location.pathname === '/admin/login';
 
   if (isAuthPage) {
     return (
       <Routes>
-        <Route path="/login" element={<AuthPages />} />
-        <Route path="/register" element={<AuthPages />} />
-        <Route path="/signup" element={<AuthPages />} />
+        <Route path="/login" element={<Navigate to="/buyer/login" />} />
+        <Route path="/register" element={<Navigate to="/buyer/login" />} />
+        <Route path="/buyer/login" element={<BuyerLogin />} />
+        <Route path="/vendor/login" element={<VendorLogin />} />
+        <Route path="/admin/login" element={
+          user?.role?.toUpperCase() === 'ADMIN' ? <Navigate to="/admin" /> : <AdminLogin />
+        } />
       </Routes>
     );
   }
 
   const [activeCategory, setActiveCategory] = useState('All');
+
+  // Admin route should bypass the public layout
+  if (location.pathname.startsWith('/admin')) {
+    return (
+      <Routes>
+        <Route path="/admin" element={
+          <ProtectedRoute allowedRoles={['admin', 'ADMIN']}>
+            <AdminDashboard />
+          </ProtectedRoute>
+        } />
+      </Routes>
+    );
+  }
 
   return (
     <div className="app-container">
@@ -36,24 +68,25 @@ const AppContent = () => {
       <div className="main-content">
         <main className="page-content">
           <Routes>
-            <Route path="/" element={<PartnersPage activeCategory={activeCategory} />} />
+            <Route path="/" element={<PartnersPage activeCategory={activeCategory} setActiveCategory={setActiveCategory} />} />
+            <Route path="/shop/:username" element={<ShopPage />} />
 
-            {/* Vendor Only Route */}
+            {/* Vendor Specific Routes */}
             <Route path="/dashboard" element={
-              <ProtectedRoute allowedRoles={['vendor']}>
-                <DashboardPage />
+              <ProtectedRoute allowedRoles={['vendor', 'VENDOR']}>
+                <VendorDashboard />
               </ProtectedRoute>
             } />
             <Route path="/setup-shop" element={
-              <ProtectedRoute allowedRoles={['vendor']}>
+              <ProtectedRoute allowedRoles={['vendor', 'VENDOR']}>
                 <VendorSetupPage />
               </ProtectedRoute>
             } />
 
-            {/* Admin Only Route */}
-            <Route path="/admin" element={
-              <ProtectedRoute allowedRoles={['admin']}>
-                <AdminDashboard />
+            {/* Buyer Specific Routes */}
+            <Route path="/buyer/dashboard" element={
+              <ProtectedRoute allowedRoles={['buyer', 'BUYER']}>
+                <BuyerDashboard />
               </ProtectedRoute>
             } />
 
@@ -64,6 +97,13 @@ const AppContent = () => {
             } />
 
             <Route path="/cart" element={<CartPage />} />
+            <Route path="/checkout" element={
+              <ProtectedRoute>
+                <CheckoutPage />
+              </ProtectedRoute>
+            } />
+            <Route path="/product" element={<ProductDetailsPage />} />
+            <Route path="/orders" element={<OrdersPage />} />
           </Routes>
         </main>
       </div>
@@ -71,7 +111,6 @@ const AppContent = () => {
     </div>
   );
 };
-
 
 function App() {
   return (
@@ -84,4 +123,5 @@ function App() {
     </AuthProvider>
   );
 }
+
 export default App;

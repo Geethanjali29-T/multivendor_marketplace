@@ -1,147 +1,165 @@
-import React from 'react';
-import { Star, X, ShoppingCart } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Star, X, ShoppingCart, ShieldCheck, Zap, Heart } from 'lucide-react';
 import { useCart } from '../contexts/CartContext';
+import { useAuth } from '../contexts/AuthContext';
+import { api } from '../services/api';
 
-const ProductModal = ({ isOpen, onClose, partner }) => {
+const ProductModal = ({ isOpen, onClose, product, partner }) => {
     const { addToCart } = useCart();
+    const { user } = useAuth();
+    const navigate = useNavigate();
+    const item = product || partner;
 
-    if (!isOpen || !partner) return null;
+    const [settings] = useState(() => {
+        const saved = localStorage.getItem('marketplace_settings');
+        return saved ? JSON.parse(saved) : { enableReviews: true, returnPolicy: '7 Days Replacement Policy' };
+    });
 
-    // Use dynamic product details if available from the backend, otherwise fallback
-    const price = partner.price || Math.floor(Math.random() * 5000) + 500;
-    const productName = partner.productName || `${partner.name} Premium Service`;
+    const [cartMsg, setCartMsg] = useState('');
+    const [wishMsg, setWishMsg] = useState('');
+    const [reviews, setReviews] = useState([]);
+    useEffect(() => {
+        if (item) {
+            const mock = [
+                { id: 1, user: 'Rahul S.', rating: 5, date: '2 days ago', comment: 'Quality is top notch. Delivery was also very fast.' },
+                { id: 2, user: 'Sneha P.', rating: 4, date: '5 days ago', comment: 'Good product, exactly as shown in images.' }
+            ];
+            setReviews(mock);
+        }
+    }, [item]);
 
-    const handleAddToCart = () => {
+    if (!isOpen || !item) return null;
+
+    const price = item.price || 999;
+    const oldPrice = Math.floor(price * 1.4);
+    const discount = "30% OFF";
+    const productName = item.name || item.productName || 'Premium Product';
+    const image = item.image || item.bannerImage || 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=800';
+    const vendorName = item.vendor_name || item.name || 'Official Store';
+
+    const handleAddToCart = (shouldNavigate = false) => {
         addToCart({
-            id: partner.id,
+            id: item.id || item._id,
             name: productName,
-            vendor: partner.name,
+            vendor: vendorName,
             price: price,
-            bannerImage: partner.bannerImage,
-            logoImage: partner.logoImage
+            image: image
         });
-        alert(`Added ${partner.name} to Cart!`);
-        onClose();
+        if (shouldNavigate) {
+            navigate('/checkout');
+        } else {
+            setCartMsg(`Added to cart!`);
+            setTimeout(() => setCartMsg(''), 3000);
+        }
+    };
+
+    const handleWishlist = async () => {
+        if (!user) {
+            setWishMsg('Please log in to save items.');
+            setTimeout(() => setWishMsg(''), 3000);
+            return;
+        }
+        try {
+            const currentWish = user.wishlist || [];
+            const isMatch = currentWish.find(i => (i.id || i._id) === (item.id || item._id));
+            let newWish;
+            if (isMatch) {
+                newWish = currentWish.filter(i => (i.id || i._id) !== (item.id || item._id));
+            } else {
+                newWish = [...currentWish, {
+                    id: item.id || item._id,
+                    name: productName,
+                    price: price,
+                    image: image
+                }];
+            }
+            await api.updateUserProfile({ wishlist: newWish });
+            setWishMsg(isMatch ? 'Removed from wishlist.' : 'Saved to wishlist!');
+            setTimeout(() => setWishMsg(''), 3000);
+        } catch (e) {
+            setWishMsg('Failed to update wishlist.');
+            setTimeout(() => setWishMsg(''), 3000);
+        }
     };
 
     return (
-        <div style={styles.overlay}>
+        <div style={styles.overlay} onClick={(e) => e.target === e.currentTarget && onClose()}>
             <div style={styles.modal}>
-                <button style={styles.closeBtn} onClick={onClose}>
-                    <X size={24} color="var(--text-muted)" />
-                </button>
+                <button style={styles.closeBtn} onClick={onClose}><X size={20} /></button>
 
-                <div style={styles.content}>
-                    {/* Left Column: Product Info */}
-                    <div style={styles.productSection}>
-                        <div style={styles.imageContainer}>
-                            <span style={styles.categoryTag}>{partner.tags && partner.tags[0]}</span>
-                            <img src={partner.bannerImage} alt={partner.name} style={styles.productImage} />
+                <div style={styles.container}>
+                    {/* Left Side: Images & Actions */}
+                    <div style={styles.leftCol}>
+                        <div style={styles.imageBox}>
+                            <img src={image} alt={productName} style={styles.mainImg} />
                         </div>
-
-                        <div style={styles.productDetails}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
-                                <h2 style={{ fontSize: '1.75rem', margin: 0, color: 'var(--brand-secondary)' }}>{productName}</h2>
-                                <h2 style={{ fontSize: '1.75rem', margin: 0, color: 'var(--brand-secondary)' }}>₹{price}</h2>
-                            </div>
-
-                            <p style={{ fontSize: '0.65rem', fontWeight: 700, color: 'var(--brand-primary)', letterSpacing: '0.05em', marginBottom: '16px', textTransform: 'uppercase' }}>
-                                SOLD BY {partner.name}
-                            </p>
-
-                            <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)', lineHeight: 1.6, marginBottom: '24px' }}>
-                                {partner.description}
-                            </p>
-
-                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', alignSelf: 'stretch' }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '12px 16px', backgroundColor: '#f8fafc', borderRadius: '12px' }}>
-                                    <div style={{ display: 'flex', color: 'var(--brand-accent)' }}>
-                                        <Star size={16} fill="currentColor" />
-                                        <Star size={16} fill="currentColor" />
-                                        <Star size={16} fill="currentColor" />
-                                        <Star size={16} fill="currentColor" />
-                                        <Star size={16} fill="currentColor" />
-                                    </div>
-                                    <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>{partner.rating} <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>({partner.reviews} reviews)</span></span>
-                                </div>
-                                <button onClick={handleAddToCart} style={styles.addToCartBtn}>
-                                    <ShoppingCart size={18} /> Add to Cart
-                                </button>
-                            </div>
+                        <div style={styles.actionRow}>
+                            <button style={styles.cartBtn} onClick={handleAddToCart}>
+                                <ShoppingCart size={18} /> ADD TO CART
+                            </button>
+                            <button style={styles.buyBtn} onClick={() => handleAddToCart(true)}>
+                                <Zap size={18} /> BUY NOW
+                            </button>
                         </div>
+                        <button style={styles.wishBtn} onClick={handleWishlist}>
+                            <Heart size={18} fill={(user?.wishlist?.find(i => (i.id || i._id) === (item.id || item._id))) ? "#ff4343" : "none"} color="#ff4343" />
+                            SAVE FOR LATER
+                        </button>
+                        {cartMsg && (
+                            <div style={{ marginTop: '8px', padding: '10px 14px', backgroundColor: '#ecfdf5', color: '#065f46', borderRadius: '4px', fontSize: '13px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px' }}>✓ {cartMsg}</div>
+                        )}
+                        {wishMsg && (
+                            <div style={{ marginTop: '8px', padding: '10px 14px', backgroundColor: '#eff6ff', color: '#1e40af', borderRadius: '4px', fontSize: '13px', fontWeight: 600 }}>{wishMsg}</div>
+                        )}
                     </div>
 
-                    {/* Right Column: Reviews */}
-                    <div style={styles.reviewSection}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '24px' }}>
-                            <h3 style={{ fontSize: '1.1rem', margin: 0 }}>Customer Reviews</h3>
-                            <span style={{ backgroundColor: '#f1f5f9', color: 'var(--text-muted)', padding: '2px 8px', borderRadius: '99px', fontSize: '0.75rem', fontWeight: 600 }}>2</span>
+                    {/* Right Side: Details & Reviews */}
+                    <div style={styles.rightCol}>
+                        <div style={styles.breadcrumb}>Home &gt; {item.category || 'Product'} &gt; {productName}</div>
+
+                        <h1 style={styles.title}>{productName}</h1>
+
+                        <div style={styles.ratingRow}>
+                            <div style={styles.ratingBox}>{item.rating || 4.2} ★</div>
+                            <span style={styles.ratingCount}>{item.reviews || 428} Ratings & 56 Reviews</span>
                         </div>
 
-                        <div style={styles.reviewsList}>
-                            {/* Review 1 */}
-                            <div style={styles.reviewCard}>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px' }}>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                                        <div style={{ ...styles.avatar, backgroundColor: 'var(--brand-primary)' }}>S</div>
-                                        <div>
-                                            <p style={{ margin: 0, fontSize: '0.85rem', fontWeight: 600 }}>Suraj</p>
-                                            <div style={{ display: 'flex', color: 'var(--brand-accent)', marginTop: '2px' }}>
-                                                <Star size={10} fill="currentColor" />
-                                                <Star size={10} fill="currentColor" />
-                                                <Star size={10} fill="currentColor" />
-                                                <Star size={10} fill="currentColor" />
-                                                <Star size={10} fill="currentColor" />
+                        <div style={styles.priceSection}>
+                            <span style={styles.currPrice}>₹{price}</span>
+                            <span style={styles.oldPrice}>₹{oldPrice}</span>
+                            <span style={styles.discountText}>{discount}</span>
+                        </div>
+
+                        <div style={styles.vendorBox}>
+                            Seller: <span style={styles.vendorLink}>{vendorName}</span>
+                        </div>
+
+                        <div style={styles.policyRow}>
+                            <div style={styles.policyItem}><ShieldCheck size={16} /> {settings.returnPolicy}</div>
+                            <div style={styles.policyItem}><Zap size={16} /> Cash on Delivery available</div>
+                        </div>
+
+                        <div style={styles.divider} />
+
+                        {/* Reviews Section */}
+                        {settings.enableReviews && (
+                            <div style={styles.reviewSection}>
+                                <h3 style={styles.sectionTitle}>Ratings & Reviews</h3>
+                                <div style={styles.reviewsList}>
+                                    {reviews.map(rev => (
+                                        <div key={rev.id} style={styles.reviewItem}>
+                                            <div style={styles.revHeader}>
+                                                <div style={styles.revRating}>{rev.rating} ★</div>
+                                                <span style={styles.revUser}>{rev.user}</span>
                                             </div>
+                                            <p style={styles.revComment}>{rev.comment}</p>
+                                            <span style={styles.revDate}>{rev.date}</span>
                                         </div>
-                                    </div>
-                                    <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>2/14/2026</span>
+                                    ))}
                                 </div>
-                                <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-main)' }}>good books</p>
                             </div>
-
-                            {/* Review 2 */}
-                            <div style={styles.reviewCard}>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px' }}>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                                        <div style={{ ...styles.avatar, backgroundColor: '#8b5cf6' }}>A</div>
-                                        <div>
-                                            <p style={{ margin: 0, fontSize: '0.85rem', fontWeight: 600 }}>Amit Kumar</p>
-                                            <div style={{ display: 'flex', color: 'var(--brand-accent)', marginTop: '2px' }}>
-                                                <Star size={10} fill="currentColor" />
-                                                <Star size={10} fill="currentColor" />
-                                                <Star size={10} fill="currentColor" />
-                                                <Star size={10} fill="currentColor" />
-                                                <Star size={10} fill="currentColor" />
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>2/13/2026</span>
-                                </div>
-                                <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-main)' }}>Nice</p>
-                            </div>
-                        </div>
-
-                        {/* Add Review Form */}
-                        <div style={styles.addReviewForm}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                                <h4 style={{ margin: 0, fontSize: '0.9rem', fontWeight: 600 }}>Write a Review</h4>
-                                <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Posting as Suraj</span>
-                            </div>
-                            <div style={{ display: 'flex', color: 'var(--brand-accent)', gap: '4px', marginBottom: '16px' }}>
-                                <Star size={20} fill="currentColor" />
-                                <Star size={20} fill="currentColor" />
-                                <Star size={20} fill="currentColor" />
-                                <Star size={20} fill="currentColor" />
-                                <Star size={20} fill="currentColor" />
-                            </div>
-                            <textarea
-                                placeholder="Share your experience with this product... (min 10 chars)"
-                                style={styles.textarea}
-                            />
-                            <button style={styles.submitReviewBtn} onClick={() => alert("Review submitted successfully!")}>Submit Review</button>
-                        </div>
-
+                        )}
                     </div>
                 </div>
             </div>
@@ -152,160 +170,244 @@ const ProductModal = ({ isOpen, onClose, partner }) => {
 const styles = {
     overlay: {
         position: 'fixed',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        backgroundColor: 'rgba(15, 23, 42, 0.4)',
-        backdropFilter: 'blur(4px)',
+        inset: 0,
+        backgroundColor: 'rgba(0,0,0,0.5)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
         zIndex: 1000,
-        padding: '40px',
+        padding: '20px',
     },
     modal: {
-        backgroundColor: 'var(--bg-card)',
-        borderRadius: '32px',
+        backgroundColor: '#fff',
         width: '1000px',
         maxWidth: '100%',
-        height: '600px',
+        height: '90vh',
+        borderRadius: '2px',
         position: 'relative',
-        boxShadow: 'var(--shadow-lg)',
+        display: 'flex',
         overflow: 'hidden',
     },
     closeBtn: {
         position: 'absolute',
-        top: '24px',
-        right: '24px',
-        backgroundColor: 'transparent',
-        border: 'none',
-        cursor: 'pointer',
-        zIndex: 10,
-        padding: '8px',
+        top: '16px',
+        right: '16px',
+        background: '#fff',
+        border: '1px solid #e0e0e0',
         borderRadius: '50%',
+        width: '36px',
+        height: '36px',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        transition: 'background-color 0.2s',
+        cursor: 'pointer',
+        zIndex: 10,
     },
-    content: {
+    container: {
         display: 'flex',
+        width: '100%',
         height: '100%',
     },
-    productSection: {
-        flex: 1,
-        padding: '40px',
+    leftCol: {
+        flex: '0 0 400px',
+        padding: '16px',
         display: 'flex',
         flexDirection: 'column',
+        borderRight: '1px solid #f0f0f0',
     },
-    imageContainer: {
-        width: '100%',
-        height: '280px',
-        borderRadius: '24px',
-        overflow: 'hidden',
-        position: 'relative',
-        marginBottom: '32px',
+    imageBox: {
+        flex: 1,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        border: '1px solid #f0f0f0',
+        padding: '16px',
+        marginBottom: '16px',
     },
-    categoryTag: {
-        position: 'absolute',
-        top: '16px',
-        left: '16px',
-        backgroundColor: 'rgba(255,255,255,0.9)',
-        color: 'var(--brand-primary)',
-        padding: '6px 14px',
-        borderRadius: '99px',
-        fontSize: '0.65rem',
+    mainImg: {
+        maxWidth: '100%',
+        maxHeight: '100%',
+        objectFit: 'contain',
+    },
+    actionRow: {
+        display: 'flex',
+        gap: '8px',
+    },
+    cartBtn: {
+        flex: 1,
+        backgroundColor: '#ff9f00',
+        color: '#fff',
+        border: 'none',
+        padding: '16px',
+        fontSize: '16px',
         fontWeight: 700,
-        letterSpacing: '0.05em',
-        zIndex: 2,
+        cursor: 'pointer',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: '8px',
+        borderRadius: '2px',
     },
-    productImage: {
+    buyBtn: {
+        flex: 1,
+        backgroundColor: '#fb641b',
+        color: '#fff',
+        border: 'none',
+        padding: '16px',
+        fontSize: '16px',
+        fontWeight: 700,
+        cursor: 'pointer',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: '8px',
+        borderRadius: '2px',
+    },
+    wishBtn: {
+        marginTop: '12px',
         width: '100%',
-        height: '100%',
-        objectFit: 'cover',
+        backgroundColor: '#fff',
+        color: '#212121',
+        border: '1px solid #e0e0e0',
+        padding: '12px',
+        fontSize: '14px',
+        fontWeight: 700,
+        cursor: 'pointer',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: '8px',
+        borderRadius: '2px',
     },
-    productDetails: {
+    rightCol: {
+        flex: 1,
+        padding: '24px',
+        overflowY: 'auto',
+    },
+    breadcrumb: {
+        fontSize: '12px',
+        color: '#878787',
+        marginBottom: '12px',
+    },
+    title: {
+        fontSize: '18px',
+        fontWeight: 500,
+        margin: '0 0 12px 0',
+        color: '#212121',
+    },
+    ratingRow: {
+        display: 'flex',
+        alignItems: 'center',
+        gap: '12px',
+        marginBottom: '16px',
+    },
+    ratingBox: {
+        backgroundColor: '#388e3c',
+        color: '#fff',
+        padding: '2px 8px',
+        borderRadius: '3px',
+        fontSize: '14px',
+        fontWeight: 700,
+    },
+    ratingCount: {
+        fontSize: '14px',
+        color: '#878787',
+        fontWeight: 500,
+    },
+    priceSection: {
+        display: 'flex',
+        alignItems: 'center',
+        gap: '12px',
+        marginBottom: '20px',
+    },
+    currPrice: {
+        fontSize: '28px',
+        fontWeight: 700,
+        color: '#212121',
+    },
+    oldPrice: {
+        fontSize: '16px',
+        color: '#878787',
+        textDecoration: 'line-through',
+    },
+    discountText: {
+        fontSize: '16px',
+        color: '#388e3c',
+        fontWeight: 600,
+    },
+    vendorBox: {
+        fontSize: '14px',
+        color: '#878787',
+        marginBottom: '24px',
+    },
+    vendorLink: {
+        color: '#2874f0',
+        fontWeight: 600,
+        marginLeft: '8px',
+    },
+    policyRow: {
         display: 'flex',
         flexDirection: 'column',
-        flex: 1,
+        gap: '8px',
+        marginBottom: '24px',
+    },
+    policyItem: {
+        display: 'flex',
+        alignItems: 'center',
+        gap: '12px',
+        fontSize: '14px',
+        color: '#212121',
+    },
+    divider: {
+        height: '1px',
+        backgroundColor: '#f0f0f0',
+        margin: '24px 0',
     },
     reviewSection: {
-        width: '400px',
-        padding: '40px 40px 40px 0',
-        display: 'flex',
-        flexDirection: 'column',
+        marginTop: '24px',
+    },
+    sectionTitle: {
+        fontSize: '24px',
+        fontWeight: 600,
+        margin: '0 0 20px 0',
     },
     reviewsList: {
-        flex: 1,
-        overflowY: 'auto',
         display: 'flex',
         flexDirection: 'column',
         gap: '16px',
-        marginBottom: '24px',
-        paddingRight: '12px',
     },
-    reviewCard: {
-        backgroundColor: '#f8fafc',
-        padding: '20px',
-        borderRadius: '16px',
-        border: '1px solid #e2e8f0',
+    reviewItem: {
+        borderBottom: '1px solid #f0f0f0',
+        paddingBottom: '16px',
     },
-    avatar: {
-        width: '32px',
-        height: '32px',
-        borderRadius: '50%',
-        color: 'white',
+    revHeader: {
         display: 'flex',
         alignItems: 'center',
-        justifyContent: 'center',
-        fontSize: '0.85rem',
+        gap: '12px',
+        marginBottom: '8px',
+    },
+    revRating: {
+        backgroundColor: '#388e3c',
+        color: '#fff',
+        fontSize: '12px',
+        padding: '1px 6px',
+        borderRadius: '2px',
+        fontWeight: 700,
+    },
+    revUser: {
+        fontSize: '14px',
         fontWeight: 600,
+        color: '#212121',
     },
-    addReviewForm: {
-        borderTop: '1px solid #e2e8f0',
-        paddingTop: '24px',
+    revComment: {
+        fontSize: '14px',
+        color: '#212121',
+        margin: '0 0 4px 0',
+        lineHeight: '1.4',
     },
-    textarea: {
-        width: '100%',
-        height: '80px',
-        padding: '16px',
-        borderRadius: '16px',
-        border: '1px solid #e2e8f0',
-        outline: 'none',
-        fontSize: '0.85rem',
-        fontFamily: 'inherit',
-        marginBottom: '16px',
-        resize: 'none',
-        backgroundColor: '#fff',
-    },
-    submitReviewBtn: {
-        width: '100%',
-        backgroundColor: 'var(--brand-primary)', // Using Emerald
-        color: 'white',
-        border: 'none',
-        padding: '16px',
-        borderRadius: '12px',
-        fontWeight: 600,
-        fontSize: '0.9rem',
-        cursor: 'pointer',
-        boxShadow: '0 4px 14px 0 rgba(16, 185, 129, 0.39)', // Emerald shadow
-        transition: 'transform 0.2s, background-color 0.2s',
-    },
-    addToCartBtn: {
-        backgroundColor: 'var(--brand-primary)',
-        color: 'white',
-        border: 'none',
-        padding: '12px 24px',
-        borderRadius: '12px',
-        fontWeight: 600,
-        fontSize: '0.95rem',
-        display: 'flex',
-        alignItems: 'center',
-        gap: '8px',
-        cursor: 'pointer',
-        boxShadow: '0 4px 14px 0 rgba(16, 185, 129, 0.39)',
-        transition: 'transform 0.2s'
+    revDate: {
+        fontSize: '12px',
+        color: '#878787',
     }
 };
 

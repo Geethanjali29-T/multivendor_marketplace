@@ -77,7 +77,15 @@ export const AuthProvider = ({ children }) => {
     };
 
     const loginWithGoogle = async () => {
-        const result = await signInWithPopup(auth, googleProvider);
+        let result;
+        try {
+            result = await signInWithPopup(auth, googleProvider);
+        } catch (error) {
+            if (error.code === 'auth/popup-closed-by-user') {
+                return null; // Handle cancellation gracefully
+            }
+            throw error; // Re-throw other errors
+        }
         const fbUser = result.user;
 
         let userRole = 'buyer';

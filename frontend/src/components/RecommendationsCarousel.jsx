@@ -1,7 +1,7 @@
 import React from 'react';
 import { Lightbulb, ChevronRight, ChevronLeft, Star } from 'lucide-react';
 
-const RecommendationsCarousel = () => {
+const RecommendationsCarousel = ({ category = 'All' }) => {
     // Simulated Machine Learning Output based on browsing history
     const recommendedProducts = [
         {
@@ -50,6 +50,16 @@ const RecommendationsCarousel = () => {
         }
     ];
 
+    const filteredProducts = category === 'All'
+        ? recommendedProducts
+        : recommendedProducts.filter(p => {
+            if (category === 'Electronics') return p.title.includes('Vehicle') || p.title.includes('Course'); // Simulate relevance
+            if (category === 'Education') return p.title.includes('German') || p.title.includes('Study');
+            return true;
+        });
+
+    const displayProducts = filteredProducts.length > 0 ? filteredProducts : recommendedProducts;
+
     return (
         <div style={styles.container}>
             <div style={styles.headerArea}>
@@ -70,7 +80,7 @@ const RecommendationsCarousel = () => {
             </div>
 
             <div style={styles.carouselTrack}>
-                {recommendedProducts.map(product => (
+                {displayProducts.map(product => (
                     <div key={product.id} style={styles.card}>
                         <div style={{ ...styles.imageSection, backgroundColor: product.bgTint }}>
                             <div style={styles.tagLine}>

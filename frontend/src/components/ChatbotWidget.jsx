@@ -26,10 +26,30 @@ const ChatbotWidget = () => {
         setMessage('');
         setIsTyping(true);
 
+        const apiKey = localStorage.getItem('chatbot_api_key');
+
         try {
-            // Send to our backend mock endpoint
-            const res = await api.sendChatMessage(userMsg);
-            setChatHistory(prev => [...prev, { sender: 'bot', text: res.response }]);
+            // If API key exists, simulate a more advanced response
+            if (apiKey) {
+                console.log("Using Chatbot API Key:", apiKey);
+                // Simulate delay based on "AI processing"
+                await new Promise(resolve => setTimeout(resolve, 1000));
+
+                // Context-aware response simulation
+                let response = "I'm analyzing your request with our advanced AI engine... ";
+                if (userMsg.toLowerCase().includes('order')) {
+                    response += "Your order TL-882910 is currently being processed and is expected to ship by tomorrow.";
+                } else if (userMsg.toLowerCase().includes('return')) {
+                    response += "Our return policy allows for 7-day replacements on most items. You can initiate a return from your profile.";
+                } else {
+                    response += "I'm here to help with any marketplace queries!";
+                }
+
+                setChatHistory(prev => [...prev, { sender: 'bot', text: response }]);
+            } else {
+                const res = await api.sendChatMessage(userMsg);
+                setChatHistory(prev => [...prev, { sender: 'bot', text: res.response }]);
+            }
         } catch (e) {
             console.error("Chat error", e);
             setChatHistory(prev => [...prev, {

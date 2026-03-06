@@ -40,7 +40,9 @@ const AuthPages = () => {
         try {
             if (mode === 'login') {
                 const loggedUser = await login(formData.email, formData.password);
-                if (loggedUser.role?.toUpperCase() === 'VENDOR') {
+                if (loggedUser.role?.toUpperCase() === 'ADMIN') {
+                    navigate('/admin', { replace: true });
+                } else if (loggedUser.role?.toUpperCase() === 'VENDOR') {
                     navigate('/dashboard', { replace: true });
                 } else {
                     navigate('/', { replace: true });
@@ -72,7 +74,13 @@ const AuthPages = () => {
         setLoading(true);
         try {
             const loggedUser = await loginWithGoogle();
-            if (loggedUser.role?.toUpperCase() === 'VENDOR') {
+            if (!loggedUser) {
+                setLoading(false);
+                return; // User cancelled the popup
+            }
+            if (loggedUser.role?.toUpperCase() === 'ADMIN') {
+                navigate('/admin', { replace: true });
+            } else if (loggedUser.role?.toUpperCase() === 'VENDOR') {
                 navigate('/dashboard', { replace: true });
             } else {
                 navigate('/', { replace: true });

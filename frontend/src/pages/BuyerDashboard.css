@@ -1,0 +1,263 @@
+/* Buyer Dashboard Styles - Storefront White */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
+:root {
+    --buyer-primary: var(--brand-primary);
+    --buyer-bg: var(--bg-color);
+    --buyer-surface: #ffffff;
+    --buyer-text-main: var(--text-main);
+    --buyer-text-muted: var(--text-muted);
+    --buyer-border: var(--border-light);
+    --buyer-radius: var(--radius-md);
+    --buyer-shadow: var(--shadow-sm);
+}
+
+.buyer-container {
+    max-width: var(--content-max-width);
+    margin: 32px auto;
+    padding: 0 24px;
+    display: flex;
+    gap: 32px;
+    font-family: var(--font-main);
+    min-height: calc(100vh - 120px);
+}
+
+/* Side Navigation */
+.buyer-sidebar {
+    width: 280px;
+    flex-shrink: 0;
+}
+
+.buyer-profile-mini {
+    background: var(--buyer-surface);
+    padding: 24px;
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-sm);
+    margin-bottom: 24px;
+    border: 1px solid var(--buyer-border);
+}
+
+.buyer-avatar-mini {
+    width: 64px;
+    height: 64px;
+    background: linear-gradient(135deg, var(--brand-primary), #818cf8);
+    border-radius: 18px;
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 800;
+    font-size: 1.5rem;
+    box-shadow: var(--shadow-md);
+    font-family: var(--font-heading);
+}
+
+.buyer-hello {
+    font-size: 0.8rem;
+    color: var(--buyer-text-muted);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.buyer-name-mini {
+    font-size: 1.2rem;
+    font-weight: 800;
+    color: var(--buyer-text-main);
+    font-family: var(--font-heading);
+}
+
+.buyer-side-menu {
+    background: var(--buyer-surface);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-sm);
+    border: 1px solid var(--buyer-border);
+    overflow: hidden;
+}
+
+.buyer-menu-section {
+    border-bottom: 1px solid var(--buyer-border);
+}
+
+.buyer-menu-header {
+    padding: 16px 16px 12px 64px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-weight: 700;
+    font-size: 1rem;
+    color: var(--buyer-text-muted);
+    text-transform: uppercase;
+    position: relative;
+}
+
+.buyer-menu-icon {
+    position: absolute;
+    left: 16px;
+    color: var(--buyer-primary);
+}
+
+.buyer-menu-items {
+    padding-bottom: 12px;
+}
+
+.buyer-menu-item {
+    padding: 10px 16px 10px 64px;
+    font-size: 0.9rem;
+    color: var(--buyer-text-main);
+    display: block;
+    text-decoration: none;
+    transition: all 0.2s;
+    cursor: pointer;
+    background: none;
+    border: none;
+    width: 100%;
+    text-align: left;
+}
+
+.buyer-menu-item:hover {
+    color: var(--buyer-primary);
+    background: #f5faff;
+}
+
+.buyer-menu-item.active {
+    color: var(--buyer-primary);
+    font-weight: 700;
+    background: #f5faff;
+}
+
+/* Main Content Area */
+.buyer-main {
+    flex: 1;
+    min-width: 0;
+}
+
+.buyer-card {
+    background: var(--buyer-surface);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-md);
+    padding: 32px;
+    margin-bottom: 24px;
+    border: 1px solid var(--buyer-border);
+}
+
+.buyer-card-title {
+    font-size: 20px;
+    font-weight: 800;
+    margin-bottom: 28px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    color: var(--text-main);
+    font-family: var(--font-heading);
+}
+
+.buyer-order-item {
+    padding: 24px;
+    border: 1px solid var(--buyer-border);
+    border-radius: 4px;
+    margin-bottom: 16px;
+    display: flex;
+    gap: 24px;
+    transition: all 0.2s;
+}
+
+.buyer-order-item:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.buyer-order-img {
+    width: 80px;
+    height: 80px;
+    object-fit: contain;
+    background: #f9f9f9;
+}
+
+.buyer-order-details {
+    flex: 1;
+}
+
+.buyer-order-name {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--buyer-text-main);
+    margin-bottom: 8px;
+}
+
+.buyer-order-price {
+    font-weight: 700;
+}
+
+.buyer-status-area {
+    width: 200px;
+}
+
+.buyer-status-text {
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.9rem;
+}
+
+.buyer-status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+}
+
+.dot-success {
+    background: #26a541;
+}
+
+.dot-warning {
+    background: #ff9f00;
+}
+
+.dot-danger {
+    background: #ff6161;
+}
+
+.buyer-empty {
+    text-align: center;
+    padding: 64px 0;
+}
+
+.buyer-empty p {
+    color: var(--buyer-text-muted);
+    margin: 16px 0 24px;
+}
+
+.buyer-btn-primary {
+    background: var(--brand-primary);
+    color: #fff;
+    padding: 14px 32px;
+    font-weight: 800;
+    border-radius: var(--radius-sm);
+    text-transform: uppercase;
+    text-decoration: none;
+    border: none;
+    cursor: pointer;
+    letter-spacing: 1px;
+    box-shadow: var(--shadow-md);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.buyer-btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-lg);
+    background: var(--brand-secondary);
+}
+
+@media (max-width: 992px) {
+    .buyer-container {
+        flex-direction: column;
+    }
+
+    .buyer-sidebar {
+        width: 100%;
+    }
+}

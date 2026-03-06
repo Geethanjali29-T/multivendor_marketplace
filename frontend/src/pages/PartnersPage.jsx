@@ -1,288 +1,598 @@
 import React, { useState, useEffect } from 'react';
-import { Star, MessageCircle } from 'lucide-react';
+import { Star, MessageCircle, Zap, X, ArrowRight } from 'lucide-react';
 import VendorCard from '../components/VendorCard';
-import ProductModal from '../components/ProductModal';
 import LoadingScreen from '../components/LoadingScreen';
 import RecommendationsCarousel from '../components/RecommendationsCarousel';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { api } from '../services/api';
+import { useAuth } from '../contexts/AuthContext';
 
-const PartnersPage = ({ activeCategory = 'All' }) => {
-    const [isModalOpen, setIsModalOpen] = useState(false);
-    const [selectedPartner, setSelectedPartner] = useState(null);
+const PartnersPage = ({ activeCategory = 'All', setActiveCategory }) => {
+    const { user } = useAuth();
+    const location = useLocation();
+    const navigate = useNavigate();
+    const searchParams = new URLSearchParams(location.search);
+    const searchQuery = searchParams.get('search') || '';
+
     const [vendors, setVendors] = useState([]);
+    const [products, setProducts] = useState([]);
+    const [recommendations, setRecommendations] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [showRecommendation, setShowRecommendation] = useState(false);
+    const [trendingTab, setTrendingTab] = useState('New'); // 'New' or 'Top'
 
-    const handleOpenModal = (partner) => {
-        setSelectedPartner(partner);
-        setIsModalOpen(true);
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            const settings = JSON.parse(localStorage.getItem('marketplace_settings') || '{}');
+            const isAIEnabled = settings.aiRecommendations !== false;
+
+            if (isAIEnabled) {
+                setShowRecommendation(true);
+            }
+        }, 5000);
+        return () => clearTimeout(timer);
+    }, []);
+
+    const handleOpenModal = (product) => {
+        // AI Tracking: Log view for this category
+        if (product.category) api.trackActivity('view', product.category);
+        if (product.product_id) api.trackActivity('view', `p_${product.product_id}`);
+        navigate('/product', { state: { product } });
     };
 
     // Fallback Mock Data in case the Django backend is empty
     const fallbackMockPartners = [
         {
             id: 1,
-            name: 'YES Germany Delhi - Study Abroad',
+            name: 'Elite Mobile Hub',
             rating: 4.8,
             reviews: 973,
-            description: 'Premier German Education Consultant in Delhi. Providing German Language Classes and Study Abroad counseling.',
-            tags: ['EDUCATION', 'RENTALS'],
-            bannerImage: 'https://images.unsplash.com/photo-1522071820081-009f0129c71c?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&q=60',
-            logoImage: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?ixlib=rb-1.2.1&auto=format&fit=facearea&facepad=2&w=128&h=128&q=60',
+            description: 'Latest premium smartphones and high-speed accessories.',
+            tags: ['MOBILES'],
+            bannerImage: 'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?auto=format&fit=crop&w=400&q=60',
+            logoImage: 'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?auto=format&fit=facearea&facepad=2&w=128&h=128&q=60',
         },
         {
             id: 2,
-            name: 'Apollo Health & Grocery',
+            name: 'Kitchen Excellence',
             rating: 4.6,
             reviews: 512,
-            description: 'Verified healthcare products and premium daily groceries in Green Park.',
-            tags: ['HEALTHCARE', 'GROCERY'],
-            bannerImage: 'https://images.unsplash.com/photo-1542838132-92c53300491e?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&q=60',
-            logoImage: 'https://images.unsplash.com/photo-1532938911079-1b06ac7ceec7?ixlib=rb-1.2.1&auto=format&fit=facearea&facepad=2&w=128&h=128&q=60',
+            description: 'Premium home and kitchen appliances for modern living.',
+            tags: ['HOME & KITCHEN', 'APPLIANCES'],
+            bannerImage: 'https://images.unsplash.com/photo-1556911220-e15b29be8c8f?auto=format&fit=crop&w=400&q=60',
+            logoImage: 'https://images.unsplash.com/photo-1556911220-e15b29be8c8f?auto=format&fit=facearea&facepad=2&w=128&h=128&q=60',
         },
         {
             id: 3,
-            name: 'Speedy Wheels Service',
+            name: 'Vogue Boutique',
             rating: 4.7,
             reviews: 284,
-            description: 'Expert vehicle servicing and specialized rentals for travelers.',
-            tags: ['VEHICLE SERVICES', 'RENTALS'],
-            bannerImage: 'https://images.unsplash.com/photo-1492144534655-ae79c964c9d7?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&q=60',
-            logoImage: 'https://images.unsplash.com/photo-1552519507-da3b142c6e3d?ixlib=rb-1.2.1&auto=format&fit=facearea&facepad=2&w=128&h=128&q=60',
-        },
-        {
-            id: 4,
-            name: 'Tech Haven',
-            rating: 4.7,
-            reviews: 450,
-            description: 'Latest gadgets, laptops, and smart home devices.',
-            tags: ['ELECTRONICS'],
-            bannerImage: 'https://images.unsplash.com/photo-1498049794561-7780e7231661?auto=format&fit=crop&w=400&q=60',
-            logoImage: 'https://plus.unsplash.com/premium_photo-1661914978519-52a11fe159a7?auto=format&fit=facearea&facepad=2&w=128&h=128&q=60',
-        },
-        {
-            id: 5,
-            name: 'Global EduTech',
-            rating: 4.5,
-            reviews: 89,
-            description: 'Online coding bootcamps and certification courses.',
-            tags: ['EDUCATION'],
-            bannerImage: 'https://images.unsplash.com/photo-1501504905252-473c47e087f8?auto=format&fit=crop&w=400&q=60',
-            logoImage: 'https://images.unsplash.com/photo-1563986768609-322a13526dc6?auto=format&fit=facearea&facepad=2&w=128&h=128&q=60',
-        },
-        {
-            id: 6,
-            name: 'Fresh Mart',
-            rating: 4.6,
-            reviews: 890,
-            description: 'Organic produce and daily essentials delivered fast.',
-            tags: ['GROCERY'],
-            bannerImage: 'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=400&q=60',
-            logoImage: 'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=facearea&facepad=2&w=128&h=128&q=60',
-        },
-        {
-            id: 7,
-            name: 'City Care Clinic',
-            rating: 4.7,
-            reviews: 420,
-            description: 'General physicians and specialized consultations.',
-            tags: ['HEALTHCARE'],
-            bannerImage: 'https://images.unsplash.com/photo-1581594693702-fbdc51b2763b?auto=format&fit=crop&w=400&q=60',
-            logoImage: 'https://images.unsplash.com/photo-1581594693702-fbdc51b2763b?auto=format&fit=facearea&facepad=2&w=128&h=128&q=60',
-        },
-        {
-            id: 8,
-            name: 'GearHead Electronics',
-            rating: 4.9,
-            reviews: 1200,
-            description: 'Premium audio gear and custom PC builds.',
-            tags: ['ELECTRONICS'],
-            bannerImage: 'https://images.unsplash.com/photo-1550009158-9aff6f6c945c?auto=format&fit=crop&w=400&q=60',
-            logoImage: 'https://images.unsplash.com/photo-1550009158-9aff6f6c945c?auto=format&fit=facearea&facepad=2&w=128&h=128&q=60',
+            description: 'Curated high-fashion apparel and designer accessories.',
+            tags: ['FASHION'],
+            bannerImage: 'https://images.unsplash.com/photo-1441984904996-e0b6ba687e04?auto=format&fit=crop&w=400&q=60',
+            logoImage: 'https://images.unsplash.com/photo-1441984904996-e0b6ba687e04?auto=format&fit=facearea&facepad=2&w=128&h=128&q=60',
         }
     ];
 
     useEffect(() => {
-        const fetchVendors = async () => {
+        const fetchData = async () => {
             try {
-                const [vendorsData, productsData] = await Promise.all([
-                    api.getVendors(),
-                    api.getProducts().catch(() => [])
-                ]);
+                let productsData = [];
+                let vendorsData = await api.getVendors();
+                let recData = [];
+
+                if (user) {
+                    recData = await api.getAIRecommendations();
+                    setRecommendations(recData);
+                }
+
+                if (searchQuery) {
+                    productsData = await api.searchProducts(searchQuery);
+                    // AI Tracking: Search activity is already tracked in Header, 
+                    // but we can track category views if search matches a category
+                } else if (activeCategory !== 'All') {
+                    productsData = await api.getProducts(activeCategory);
+                    if (user) api.trackActivity('view', activeCategory);
+                } else {
+                    productsData = await api.getProducts();
+                }
 
                 const mappedPartners = vendorsData.map((shop, index) => {
-                    const vendorProducts = productsData.filter(p => p.vendor_id === shop.vendor_id);
+                    const vendorProducts = productsData.filter(p => p.vendor_username === shop.username);
                     const mainProduct = vendorProducts[0] || {};
 
                     return {
-                        id: shop._id || shop.vendor_id || index, // Use mongo ID
+                        id: shop._id || shop.vendor_id || index,
                         name: shop.name || shop.shop_name || 'Vendor Name',
+                        username: shop.username,
                         rating: shop.rating || 4.8,
                         reviews: Math.floor(Math.random() * 500) + 50,
                         description: shop.description || `${shop.category || 'Retail'} items from ${shop.location || 'Local'}.`,
                         tags: shop.category ? [shop.category.toUpperCase()] : ['PARTNER'],
                         price: mainProduct.price || Math.floor(Math.random() * 500) + 50,
                         productName: mainProduct.name || `${shop.category || 'Premium'} Service Package`,
-                        bannerImage: mainProduct.image || `https://images.unsplash.com/photo-1441986300917-64674bd600d8?auto=format&fit=crop&w=400&q=60`,
-                        logoImage: `https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=facearea&facepad=2&w=128&h=128&q=60`,
+                        bannerImage: shop.banner_image || mainProduct.image || `https://images.unsplash.com/photo-1441986300917-64674bd600d8?auto=format&fit=crop&w=400&q=60`,
+                        logoImage: shop.logo_image || `https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=facearea&facepad=2&w=128&h=128&q=60`,
                     };
                 });
 
-                if (mappedPartners.length > 0) {
+                if (mappedPartners.length > 0 || productsData.length > 0) {
                     setVendors(mappedPartners);
+                    setProducts(productsData);
                 } else {
                     setVendors(fallbackMockPartners);
                 }
             } catch (error) {
-                console.error("Failed to fetch vendors", error);
+                console.error("Failed to fetch data", error);
                 setVendors(fallbackMockPartners);
             } finally {
                 setLoading(false);
             }
         };
-        fetchVendors();
-    }, []);
+        fetchData();
+    }, [activeCategory, searchQuery, user]);
 
-    // Filter vendors based on activeCategory state passed from Header
-    const filteredPartners = activeCategory === 'All'
-        ? vendors
-        : vendors.filter(p => p.tags.includes(activeCategory.toUpperCase()));
+    // Filter vendors based on activeCategory state passed from Header AND searchQuery
+    const filteredPartners = vendors.filter(p => {
+        const matchesCategory = activeCategory === 'All' ? true : p.tags.includes(activeCategory.toUpperCase());
+        const matchesSearch = !searchQuery ||
+            p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            p.description.toLowerCase().includes(searchQuery.toLowerCase());
+        return matchesCategory && matchesSearch;
+    });
+
+    const filteredProducts = products.filter(p => {
+        const pCategory = p.category ? p.category.toUpperCase() : 'UNKNOWN';
+        const matchesCategory = activeCategory === 'All' ? true : pCategory === activeCategory.toUpperCase() || (vendors.find(v => v.id === p.vendor_id)?.tags.includes(activeCategory.toUpperCase()));
+        const matchesSearch = !searchQuery ||
+            (p.name && p.name.toLowerCase().includes(searchQuery.toLowerCase())) ||
+            (p.description && p.description.toLowerCase().includes(searchQuery.toLowerCase())) ||
+            (p.vendor_name && p.vendor_name.toLowerCase().includes(searchQuery.toLowerCase()));
+        return matchesCategory && matchesSearch;
+    });
 
     if (loading) {
         return <LoadingScreen />;
     }
 
     return (
-        <div className="fade-in">
-            {/* New Hero Section - Only show when 'All' categories are selected */}
-            {activeCategory === 'All' && (
-                <div style={styles.heroSection}>
-                    <div style={styles.heroOverlay} />
-                    <div style={styles.heroContent}>
-                        <div style={styles.heroBadge}>
-                            <span style={styles.heroBadgeDot}></span>
-                            NEW STANDARD FOR LOCAL COMMERCE 2026
+        <div className="fade-in" style={styles.pageWrapper}>
+            {/* Top Categories Strip - Floating & Interactive */}
+            <div style={styles.categoryStrip}>
+                <div style={styles.contentContainer}>
+                    {['Mobiles', 'Fashion', 'Electronics', 'Appliances', 'Beauty', 'Toys', 'Sports', 'Home & Kitchen'].map(cat => (
+                        <div key={cat} style={styles.catItem} className="cat-hover" onClick={() => {
+                            if (setActiveCategory) setActiveCategory(cat);
+                            navigate(`/?search=`); // Clear search on category click
+                        }}>
+                            <div style={styles.catCircle}>
+                                <div style={styles.catIconWrapper}>
+                                    <img src={`https://img.icons8.com/color/48/${cat.toLowerCase()}.png`} alt={cat} style={{ width: '36px' }}
+                                        onError={(e) => e.target.src = "https://img.icons8.com/color/48/shopping-cart.png"} />
+                                </div>
+                            </div>
+                            <span style={styles.catLabel}>{cat}</span>
                         </div>
-                        <h1 style={styles.heroTitle}>
-                            Connect to<br />
-                            your <span style={styles.heroHighlight}>local</span><br />
-                            <span style={styles.heroHighlight}>ecosystem.</span>
-                        </h1>
-                        <p style={styles.heroSubtitle}>
-                            The most intelligent multi-vendor hub in the city. Access premium education in Nehru Place, specialized healthcare in Green Park, and more.
-                        </p>
-                    </div>
+                    ))}
                 </div>
-            )}
-
-            {/* AI Recommendations - Only show when 'All' categories are selected */}
-            {activeCategory === 'All' && (
-                <div style={{ paddingBottom: '32px' }}>
-                    <RecommendationsCarousel />
-                </div>
-            )}
-
-            <div style={styles.header}>
-                <h2 style={{ fontSize: '2rem', color: 'var(--brand-secondary)', margin: 0 }}>
-                    {activeCategory === 'All' ? 'Our ' : ''}<span style={{ color: 'var(--brand-primary)' }}>{activeCategory === 'All' ? 'Partners' : activeCategory}</span>
-                </h2>
-                <p style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-muted)', letterSpacing: '0.05em', margin: 0 }}>
-                    {filteredPartners.length} Verified Vendors
-                </p>
             </div>
 
-            <div style={styles.grid}>
-                {filteredPartners.map(partner => (
-                    <div key={partner.id} onClick={() => handleOpenModal(partner)}>
-                        <VendorCard partner={partner} />
+            {/* Main Content Area - Wide & Breathable */}
+            <div style={styles.mainContent}>
+                {/* Hero Banner Area */}
+                <div style={styles.bannerContainer}>
+                    <img
+                        src="https://images.unsplash.com/photo-1607082348824-0a96f2a4b9da?ixlib=rb-4.0.3&auto=format&fit=crop&w=1600&q=80"
+                        alt="Summer Sale"
+                        style={styles.heroBanner}
+                    />
+                    <div style={styles.bannerOverlay} className="glass">
+                        <div style={styles.bannerText}>SUMMER COLLECTION 2026</div>
+                        <div style={styles.bannerSub}>UP TO 70% OFF PREMIUM BRANDS</div>
+                        <button style={styles.bannerBtn} className="btn btn-primary">SHOP NOW</button>
                     </div>
-                ))}
+                </div>
+
+                {/* AI Recommendations Section */}
+                {recommendations.length > 0 && (
+                    <div style={styles.sectionCard} className="card">
+                        <div style={styles.sectionHeader}>
+                            <div style={styles.sectionTitleBlock}>
+                                <h2 style={styles.sectionTitle}>Recommended For You</h2>
+                                <p style={styles.sectionSubtitle}>AI-curated selection based on your recent activity</p>
+                            </div>
+                            <div style={styles.aiBadge}>AI POWERED</div>
+                        </div>
+                        <div style={styles.horizontalScroll}>
+                            {recommendations.map(prod => (
+                                <div key={prod.id || prod._id} style={styles.productTile} onClick={() => handleOpenModal(prod)}>
+                                    <div style={styles.tileImageContainer}>
+                                        <img src={prod.image} alt={prod.name} style={styles.tileImage} />
+                                    </div>
+                                    <div style={styles.tileInfo}>
+                                        <div style={styles.tileName}>{prod.name}</div>
+                                        <div style={styles.tilePrice}>₹{prod.price}</div>
+                                        <div style={styles.tileTag}>{prod.category}</div>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                )}
+
+                {/* Horizontal Section: Featured Tech */}
+                <div style={styles.sectionCard} className="card">
+                    <div style={styles.sectionHeader}>
+                        <div style={styles.sectionTitleBlock}>
+                            <h2 style={styles.sectionTitle}>Precision Electronics</h2>
+                            <p style={styles.sectionSubtitle}>The latest in high-performance technology</p>
+                        </div>
+                        <button style={styles.viewAllBtn} onClick={() => navigate('/?search=Electronics')}>VIEW COLLECTION</button>
+                    </div>
+                    <div style={styles.horizontalScroll}>
+                        {products.filter(p => p.category?.toUpperCase() === 'ELECTRONICS').concat(products).slice(0, 8).map(prod => (
+                            <div key={prod.id} style={styles.productTile} onClick={() => handleOpenModal(prod)}>
+                                <div style={styles.tileImageContainer}>
+                                    <img src={prod.image} alt={prod.name} style={styles.tileImage} />
+                                </div>
+                                <div style={styles.tileInfo}>
+                                    <div style={styles.tileName}>{prod.name}</div>
+                                    <div style={styles.tilePrice}>From ₹{prod.price}</div>
+                                    <div style={styles.tileTag}>{prod.category}</div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+
+                {/* Main Product Grid Section */}
+                <div id="products-grid-section" style={{ padding: '24px 8px' }}>
+                    <div style={styles.gridHeader}>
+                        <h3 style={styles.gridTitle}>Curated For You</h3>
+                        <div style={styles.gridFilterSummary}>{filteredProducts.length} Items Found</div>
+                    </div>
+                    <div style={styles.gridContainer}>
+                        {filteredProducts.map(product => (
+                            <div
+                                key={product.id}
+                                style={styles.gridViewCard}
+                                className="card"
+                                onClick={() => handleOpenModal(product)}
+                            >
+                                <div style={styles.gridImageWrapper}>
+                                    <img src={product.image} alt={product.name} style={styles.gridImage} />
+                                    <div style={styles.discountBadge} className="glass">30% OFF</div>
+                                </div>
+                                <div style={styles.gridContent}>
+                                    <h4 style={styles.gridName}>{product.name}</h4>
+                                    <div style={styles.gridRating}>
+                                        <div style={styles.ratingBox}>
+                                            <span>{product.rating || 4.2}</span>
+                                            <Star size={12} fill="white" color="transparent" />
+                                        </div>
+                                        <span style={styles.reviewCount}>({product.reviews || 0} reviews)</span>
+                                    </div>
+                                    <div style={styles.gridPriceRow}>
+                                        <span style={styles.currentPrice}>₹{product.price}</span>
+                                        <span style={styles.oldPrice}>₹{Math.floor(product.price * 1.4)}</span>
+                                    </div>
+                                    <div style={styles.deliveryInfo}>
+                                        <Zap size={12} color="var(--brand-secondary)" fill="var(--brand-secondary)" />
+                                        <span>EXPRESS DELIVERY</span>
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
             </div>
 
-            <ProductModal
-                isOpen={isModalOpen}
-                onClose={() => setIsModalOpen(false)}
-                partner={selectedPartner}
-            />
         </div>
     );
 };
 
 const styles = {
-    heroSection: {
-        position: 'relative',
-        borderRadius: 'var(--radius-xl)',
-        overflow: 'hidden',
-        minHeight: '480px',
-        marginBottom: '48px',
+    pageWrapper: {
+        backgroundColor: 'var(--bg-color)',
+        minHeight: '100vh',
+    },
+    categoryStrip: {
+        backgroundColor: '#fff',
+        boxShadow: '0 2px 10px rgba(0,0,0,0.05)',
+        marginBottom: '24px',
+        padding: '16px 0',
+    },
+    contentContainer: {
+        maxWidth: 'var(--content-max-width)',
+        margin: '0 auto',
+        display: 'flex',
+        justifyContent: 'space-between',
+        padding: '0 24px',
+    },
+    catItem: {
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        cursor: 'pointer',
+        gap: '12px',
+        transition: 'transform 0.2s',
+    },
+    catCircle: {
+        width: '72px',
+        height: '72px',
+        borderRadius: '50%',
+        backgroundColor: '#f8fafc',
         display: 'flex',
         alignItems: 'center',
-        background: 'url("https://images.unsplash.com/photo-1441986300917-64674bd600d8?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=60") center/cover no-repeat', // Placeholder store image
+        justifyContent: 'center',
+        boxShadow: 'var(--shadow-sm)',
+        transition: 'all 0.3s ease',
     },
-    heroOverlay: {
-        position: 'absolute',
-        top: 0, left: 0, right: 0, bottom: 0,
-        backgroundColor: 'rgba(15, 23, 42, 0.85)', // Dark blue tint
-        zIndex: 1,
+    catIconWrapper: {
+        transition: 'transform 0.3s ease',
     },
-    heroContent: {
+    catLabel: {
+        fontSize: '13px',
+        fontWeight: 600,
+        color: 'var(--text-main)',
+        textTransform: 'uppercase',
+        letterSpacing: '0.5px',
+    },
+    mainContent: {
+        maxWidth: 'var(--content-max-width)',
+        margin: '0 auto',
+        padding: '0 24px',
+    },
+    bannerContainer: {
+        width: '100%',
+        margin: '8px 0 32px 0',
         position: 'relative',
-        zIndex: 2,
-        padding: '64px',
-        maxWidth: '700px',
+        borderRadius: 'var(--radius-lg)',
+        overflow: 'hidden',
+        boxShadow: 'var(--shadow-lg)',
+        height: '400px',
     },
-    heroBadge: {
-        display: 'inline-flex',
-        alignItems: 'center',
-        gap: '8px',
-        padding: '6px 16px',
-        backgroundColor: 'rgba(255, 255, 255, 0.1)',
-        backdropFilter: 'blur(10px)',
-        borderRadius: '99px',
-        color: 'white',
-        fontSize: '0.7rem',
-        fontWeight: 700,
-        letterSpacing: '0.05em',
-        marginBottom: '32px',
-        border: '1px solid rgba(255, 255, 255, 0.2)',
+    heroBanner: {
+        width: '100%',
+        height: '100%',
+        objectFit: 'cover',
     },
-    heroBadgeDot: {
-        width: '6px',
-        height: '6px',
-        backgroundColor: '#8b5cf6',
-        borderRadius: '50%',
+    bannerOverlay: {
+        position: 'absolute',
+        top: '50%',
+        left: '5%',
+        transform: 'translateY(-50%)',
+        padding: '40px',
+        borderRadius: 'var(--radius-lg)',
+        maxWidth: '450px',
     },
-    heroTitle: {
-        fontSize: '4.5rem',
-        lineHeight: 1.1,
-        color: 'white',
-        margin: '0 0 24px 0',
-        letterSpacing: '-0.03em',
+    bannerText: {
+        fontFamily: 'Outfit, sans-serif',
+        fontSize: '42px',
+        fontWeight: 800,
+        color: '#0f172a',
+        lineHeight: '1.1',
+        marginBottom: '16px',
     },
-    heroHighlight: {
-        color: '#c4b5fd',
-        fontStyle: 'italic',
+    bannerSub: {
+        fontSize: '16px',
+        color: '#475569',
+        fontWeight: 600,
+        marginBottom: '24px',
     },
-    heroSubtitle: {
-        fontSize: '1.1rem',
-        color: '#cbd5e1',
-        lineHeight: 1.6,
-        maxWidth: '600px',
+    sectionCard: {
+        margin: '32px 0',
+        padding: '24px',
+    },
+    sectionHeader: {
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'flex-start',
+        marginBottom: '24px',
+    },
+    sectionTitleBlock: {
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '4px',
+    },
+    sectionTitle: {
+        fontSize: '24px',
+        fontWeight: 800,
+        margin: 0,
+        color: '#0f172a',
+    },
+    sectionSubtitle: {
+        fontSize: '14px',
+        color: 'var(--text-muted)',
         margin: 0,
     },
-    header: {
+    viewAllBtn: {
+        backgroundColor: 'var(--brand-primary)',
+        color: '#fff',
+        borderRadius: 'var(--radius-sm)',
+        padding: '10px 20px',
+        fontSize: '12px',
+        fontWeight: 700,
+        border: 'none',
+        cursor: 'pointer',
+        textTransform: 'uppercase',
+        letterSpacing: '1px',
+    },
+    aiBadge: {
+        backgroundColor: 'rgba(79, 70, 229, 0.1)',
+        color: 'var(--brand-primary)',
+        padding: '6px 12px',
+        borderRadius: '20px',
+        fontSize: '10px',
+        fontWeight: 800,
+        letterSpacing: '1px',
+        border: '1px solid rgba(79, 70, 229, 0.2)',
+    },
+    horizontalScroll: {
+        display: 'flex',
+        overflowX: 'auto',
+        gap: '24px',
+        paddingBottom: '16px',
+        scrollbarWidth: 'none',
+    },
+    productTile: {
+        minWidth: '200px',
+        textAlign: 'center',
+        cursor: 'pointer',
+        transition: 'transform 0.2s',
+    },
+    tileImageContainer: {
+        height: '180px',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: '#f8fafc',
+        borderRadius: 'var(--radius-md)',
+        padding: '16px',
+        marginBottom: '12px',
+    },
+    tileImage: {
+        maxHeight: '100%',
+        maxWidth: '100%',
+        transition: 'transform 0.3s ease',
+    },
+    tileInfo: {
+        textAlign: 'left',
+    },
+    tileName: {
+        fontSize: '14px',
+        fontWeight: 600,
+        color: 'var(--text-main)',
+        whiteSpace: 'nowrap',
+        overflow: 'hidden',
+        textOverflow: 'ellipsis',
+    },
+    tilePrice: {
+        color: 'var(--brand-primary)',
+        fontSize: '16px',
+        fontWeight: 800,
+        marginTop: '4px',
+    },
+    tileTag: {
+        color: 'var(--text-muted)',
+        fontSize: '11px',
+        textTransform: 'uppercase',
+        letterSpacing: '0.5px',
+        marginTop: '2px',
+    },
+    gridHeader: {
         display: 'flex',
         justifyContent: 'space-between',
         alignItems: 'center',
-        marginBottom: '32px',
-        maxWidth: '1200px',
-        margin: '0 auto 32px auto',
+        marginBottom: '24px',
+        padding: '0 8px',
     },
-    grid: {
+    gridTitle: {
+        fontSize: '22px',
+        fontWeight: 800,
+        margin: 0,
+    },
+    gridFilterSummary: {
+        fontSize: '14px',
+        color: 'var(--text-muted)',
+        fontWeight: 600,
+    },
+    gridContainer: {
         display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',
+        gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))',
         gap: '24px',
-        maxWidth: '1200px',
-        margin: '0 auto',
+    },
+    gridViewCard: {
+        padding: '0',
+        overflow: 'hidden',
+        cursor: 'pointer',
+        position: 'relative',
+    },
+    gridImageWrapper: {
+        height: '280px',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        position: 'relative',
+        backgroundColor: '#f8fafc',
+    },
+    gridImage: {
+        maxHeight: '80%',
+        maxWidth: '80%',
+        objectFit: 'contain',
+    },
+    discountBadge: {
+        position: 'absolute',
+        top: '12px',
+        left: '12px',
+        padding: '4px 10px',
+        fontSize: '11px',
+        fontWeight: 800,
+        color: 'var(--brand-secondary)',
+        borderRadius: 'var(--radius-sm)',
+    },
+    gridContent: {
+        padding: '20px',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '8px',
+    },
+    gridName: {
+        fontSize: '15px',
+        fontWeight: 600,
+        margin: 0,
+        color: 'var(--text-main)',
+        height: '42px',
+        overflow: 'hidden',
+        display: '-webkit-box',
+        WebkitLineClamp: 2,
+        WebkitBoxOrient: 'vertical',
+    },
+    gridRating: {
+        display: 'flex',
+        alignItems: 'center',
+        gap: '8px',
+    },
+    ratingBox: {
+        backgroundColor: 'var(--brand-accent)',
+        color: '#fff',
+        fontSize: '12px',
+        padding: '2px 8px',
+        borderRadius: '4px',
+        fontWeight: 700,
+        display: 'flex',
+        alignItems: 'center',
+        gap: '4px',
+    },
+    reviewCount: {
+        fontSize: '12px',
+        color: 'var(--text-muted)',
+    },
+    gridPriceRow: {
+        display: 'flex',
+        alignItems: 'center',
+        gap: '12px',
+        marginTop: '4px',
+    },
+    currentPrice: {
+        fontSize: '18px',
+        fontWeight: 800,
+        color: 'var(--text-main)',
+    },
+    oldPrice: {
+        fontSize: '14px',
+        color: 'var(--text-muted)',
+        textDecoration: 'line-through',
+    },
+    deliveryInfo: {
+        fontSize: '11px',
+        color: 'var(--text-muted)',
+        fontWeight: 700,
+        display: 'flex',
+        alignItems: 'center',
+        gap: '6px',
+        marginTop: '8px',
+        letterSpacing: '0.5px',
     }
 };
 

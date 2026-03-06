@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
-import { Search, ShoppingBag, Zap, ChevronDown, Menu, X } from 'lucide-react';
+import React, { useState, useRef, useEffect } from 'react';
+import { Search, ShoppingBag, Zap, ChevronDown, Menu, X, User, Bell } from 'lucide-react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useCart } from '../contexts/CartContext';
+import { api } from '../services/api';
 
 const Header = ({ activeCategory, setActiveCategory }) => {
     const { user, logout } = useAuth();
@@ -13,101 +14,215 @@ const Header = ({ activeCategory, setActiveCategory }) => {
     const isBusinessPage = location.pathname === '/';
 
     const [isMenuOpen, setIsMenuOpen] = useState(false);
+    const [showAllCategories, setShowAllCategories] = useState(false);
+    const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
+    const [isNotifOpen, setIsNotifOpen] = useState(false);
+    const [notifications, setNotifications] = useState([]);
+    const profileRef = useRef(null);
+    const notifRef = useRef(null);
 
-    const categories = ['All', 'Electronics', 'Rentals', 'Vehicle Services', 'Healthcare', 'Grocery', 'Education'];
+    const allCategories = ['All', 'Mobiles', 'Fashion', 'Electronics', 'Appliances', 'Home & Kitchen', 'Beauty', 'Sports', 'Toys'];
+    const visibleCategoriesCount = 7;
+    const displayedCategories = showAllCategories ? allCategories : allCategories.slice(0, visibleCategoriesCount);
+
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (profileRef.current && !profileRef.current.contains(event.target)) {
+                setIsProfileDropdownOpen(false);
+            }
+            if (notifRef.current && !notifRef.current.contains(event.target)) {
+                setIsNotifOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    useEffect(() => {
+        if (user) {
+            const fetchNotifs = async () => {
+                const data = await api.getNotifications();
+                setNotifications(data);
+            };
+            fetchNotifs();
+            const interval = setInterval(fetchNotifs, 30000); // Polling every 30s
+            return () => clearInterval(interval);
+        }
+    }, [user]);
+
+    const handleSearchSubmit = (e) => {
+        e.preventDefault();
+        const query = e.currentTarget.search.value.trim();
+        if (query) {
+            api.trackActivity('search', query);
+            navigate(`/?search=${encodeURIComponent(query)}`);
+        } else {
+            navigate(`/`);
+        }
+    };
 
     return (
         <header style={styles.header}>
+            {/* Top Bar: Amazon-style utility with Myntra-style precision */}
             <div style={styles.topSection}>
-                {/* Brand Logo */}
-                <Link to="/" style={styles.logoContainer}>
-                    <div style={styles.logoIcon}>
-                        <Zap size={20} color="white" />
-                    </div>
-                    <span style={styles.logoText}>TradeLink</span>
-                </Link>
-
-                {/* Search Bar */}
-                <div style={styles.searchContainer}>
-                    <Search size={18} color="var(--text-muted)" style={styles.searchIcon} />
-                    <input
-                        type="text"
-                        placeholder="Search verified businesses, rentals..."
-                        style={styles.searchInput}
-                    />
-                </div>
-
-                {/* Right Actions */}
-                <div style={styles.actionsContainer}>
-                    <Link to="/cart" style={styles.iconButton}>
-                        <ShoppingBag size={20} color="var(--text-main)" />
-                        {cartCount > 0 && <span style={styles.badge}>{cartCount}</span>}
+                <div style={styles.contentContainer}>
+                    {/* Brand Logo - Minimalist & Bold */}
+                    <Link to="/" style={styles.logoContainer}>
+                        <div style={styles.logoText}>
+                            TRADE<span style={{ color: 'var(--brand-secondary)' }}>LINK</span>
+                        </div>
+                        <div style={styles.logoTagline}>Premium Marketplace</div>
                     </Link>
 
-                    {user ? (
-                        <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-                            <Link to="/profile" style={styles.iconButton} title="My Profile">
-                                <div style={styles.userAvatar}>
-                                    {user.username ? user.username.charAt(0).toUpperCase() : 'U'}
-                                </div>
-                            </Link>
-                            {user.role === 'admin' && (
-                                <Link to="/admin" style={{ ...styles.btnSecondary, display: 'flex', alignItems: 'center' }}>
-                                    Admin Panel
-                                </Link>
-                            )}
-                            {user.role === 'vendor' && (
-                                <Link to="/dashboard" style={{ ...styles.btnSecondary, display: 'flex', alignItems: 'center' }}>
-                                    Store Dashboard
-                                </Link>
-                            )}
-                            <button onClick={() => { logout(); navigate('/'); }} style={styles.btnDanger}>LOGOUT</button>
+                    {/* Search Bar - Wide, Functional, Modern Glow */}
+                    <form
+                        style={styles.searchContainer}
+                        onSubmit={handleSearchSubmit}
+                    >
+                        <div style={styles.searchWrapper}>
+                            <input
+                                name="search"
+                                type="text"
+                                placeholder="Search premium products, brands and boutiques..."
+                                style={styles.searchInput}
+                                defaultValue={new URLSearchParams(location.search).get('search') || ''}
+                            />
+                            <button type="submit" style={styles.searchBtn}>
+                                <Search size={20} color="white" />
+                            </button>
                         </div>
-                    ) : (
-                        <div style={{ display: 'flex', gap: '12px' }}>
-                            <Link to="/login" style={{ ...styles.btnOutline, display: 'flex', alignItems: 'center' }}>
-                                SIGN IN
-                            </Link>
-                            <Link to="/register" style={{ ...styles.btnPrimary, display: 'flex', alignItems: 'center' }}>
-                                PARTNER REGISTRATION
-                            </Link>
-                        </div>
-                    )}
+                    </form>
 
-                    {/* Mobile Menu Toggle */}
-                    <button style={styles.mobileMenuBtn} onClick={() => setIsMenuOpen(!isMenuOpen)}>
-                        {isMenuOpen ? <X size={24} /> : <Menu size={24} />}
-                    </button>
+                    {/* Right Actions - Clean Myntra Style */}
+                    <div style={styles.actionsContainer}>
+                        {user ? (
+                            <div style={styles.userGroup} ref={profileRef}>
+                                <div
+                                    style={styles.actionItem}
+                                    onClick={() => setIsProfileDropdownOpen(!isProfileDropdownOpen)}
+                                >
+                                    <div style={styles.avatarCircle}>
+                                        {user.username.charAt(0).toUpperCase()}
+                                    </div>
+                                    <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                        <span style={styles.actionLabel}>Profile</span>
+                                        <span style={styles.userName}>{user.username}</span>
+                                    </div>
+                                    <ChevronDown size={14} style={{
+                                        color: 'var(--text-muted)',
+                                        transform: isProfileDropdownOpen ? 'rotate(180deg)' : 'rotate(0)',
+                                        transition: 'transform 0.2s'
+                                    }} />
+                                </div>
+
+                                {isProfileDropdownOpen && (
+                                    <div style={styles.profileDropdown} className="fade-in card">
+                                        <div style={styles.dropdownHeader}>
+                                            <div style={styles.dropdownUserTitle}>Welcome, {user.username}</div>
+                                            <div style={styles.dropdownUserSub}>Membership: Gold Tier</div>
+                                        </div>
+                                        <div style={styles.dropdownSection}>
+                                            {user.role?.toUpperCase() === 'ADMIN' && (
+                                                <Link to="/admin" style={styles.dropdownItem}>Admin Console</Link>
+                                            )}
+                                            {user.role?.toUpperCase() === 'VENDOR' && (
+                                                <Link to="/dashboard" style={styles.dropdownItem}>Merchant Dashboard</Link>
+                                            )}
+                                            <Link to="/buyer/dashboard" style={styles.dropdownItem}>Order Tracking</Link>
+                                            <Link to="/profile" style={styles.dropdownItem}>Account Settings</Link>
+                                            <div style={styles.dropdownDivider}></div>
+                                            <button onClick={logout} style={styles.dropdownLogoutBtn}>Secure Sign Out</button>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        ) : (
+                            <Link to="/login" style={styles.loginCardBtn}>
+                                <User size={18} />
+                                <span>Sign In</span>
+                            </Link>
+                        )}
+
+                        {/* AI Notifications */}
+                        {user && (
+                            <div style={styles.userGroup} ref={notifRef}>
+                                <div style={styles.actionItem} onClick={() => setIsNotifOpen(!isNotifOpen)}>
+                                    <div style={styles.iconWrapper}>
+                                        <Bell size={22} color="white" />
+                                        {notifications.length > 0 && <span style={styles.badge}>{notifications.length}</span>}
+                                    </div>
+                                    <div style={{ display: 'none' }}>Notification</div>
+                                </div>
+
+                                {isNotifOpen && (
+                                    <div style={styles.notifDropdown} className="fade-in card">
+                                        <div style={styles.dropdownHeader}>
+                                            <div style={styles.dropdownUserTitle}>Notifications</div>
+                                            <div style={styles.dropdownUserSub}>AI-Powered personalized alerts</div>
+                                        </div>
+                                        <div style={styles.notifScrollArea}>
+                                            {notifications.length > 0 ? (
+                                                notifications.map(n => (
+                                                    <div key={n.id} style={styles.notifItem} onClick={() => {
+                                                        if (n.productId) navigate(`/?search=${n.productId}`);
+                                                        setIsNotifOpen(false);
+                                                    }}>
+                                                        <div style={styles.notifIconBox}>
+                                                            <Zap size={14} color="var(--brand-primary)" />
+                                                        </div>
+                                                        <div style={styles.notifBody}>
+                                                            <div style={styles.notifTitle}>{n.title}</div>
+                                                            <div style={styles.notifMsg}>{n.message}</div>
+                                                        </div>
+                                                    </div>
+                                                ))
+                                            ) : (
+                                                <div style={styles.emptyNotif}>
+                                                    All caught up! ✨
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
+                        <Link to="/cart" style={styles.actionItem}>
+                            <div style={styles.iconWrapper}>
+                                <ShoppingBag size={22} color="white" />
+                                {cartCount > 0 && <span style={styles.badge}>{cartCount}</span>}
+                            </div>
+                            <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                <span style={styles.actionLabel}>Luxury</span>
+                                <span style={styles.actionText}>Bag</span>
+                            </div>
+                        </Link>
+                    </div>
                 </div>
             </div>
 
-            {/* Bottom Nav - Categories */}
+            {/* Tier 2: Categories */}
             <nav style={styles.bottomNav}>
-                <ul style={styles.navLinks}>
-                    {categories.map((cat, index) => (
-                        <li key={index}>
-                            <button
-                                onClick={(e) => {
-                                    e.preventDefault();
-                                    if (setActiveCategory) setActiveCategory(cat);
-                                    if (location.pathname !== '/') navigate('/');
-                                }}
-                                style={{
-                                    ...styles.navLinkBtn,
-                                    color: activeCategory === cat && location.pathname === '/'
-                                        ? 'var(--brand-primary)'
-                                        : 'var(--text-main)',
-                                }}>
-                                {cat}
-                            </button>
-                        </li>
-                    ))}
-                    <li>
-                        <button style={{ ...styles.navLinkBtn, display: 'flex', alignItems: 'center', gap: '4px' }}>
-                            More <ChevronDown size={14} />
-                        </button>
-                    </li>
-                </ul>
+                <div style={styles.contentContainer}>
+                    <ul style={styles.navLinks}>
+                        {allCategories.map((cat, index) => (
+                            <li key={index}>
+                                <button
+                                    onClick={() => {
+                                        if (setActiveCategory) setActiveCategory(cat);
+                                        if (location.pathname !== '/') navigate('/');
+                                    }}
+                                    style={{
+                                        ...styles.navLinkBtn,
+                                        fontWeight: activeCategory === cat ? 700 : 500,
+                                        color: activeCategory === cat ? '#2874f0' : '#212121'
+                                    }}>
+                                    {cat}
+                                </button>
+                            </li>
+                        ))}
+                    </ul>
+                </div>
             </nav>
         </header>
     );
@@ -115,186 +230,287 @@ const Header = ({ activeCategory, setActiveCategory }) => {
 
 const styles = {
     header: {
-        backgroundColor: 'var(--bg-card)',
-        borderBottom: '1px solid #e2e8f0',
         position: 'sticky',
         top: 0,
-        zIndex: 50,
-        boxShadow: 'var(--shadow-sm)',
+        zIndex: 1000,
+        backgroundColor: 'var(--bg-header)',
+        width: '100%',
+        boxShadow: 'var(--shadow-lg)',
     },
     topSection: {
-        height: 'var(--header-height)',
+        height: '72px',
         display: 'flex',
         alignItems: 'center',
-        justifyContent: 'space-between',
-        padding: '0 3rem',
-        maxWidth: '1400px',
+    },
+    contentContainer: {
+        maxWidth: 'var(--content-max-width)',
         margin: '0 auto',
         width: '100%',
+        display: 'flex',
+        alignItems: 'center',
+        padding: '0 24px',
     },
     logoContainer: {
         display: 'flex',
-        alignItems: 'center',
-        gap: '12px',
+        flexDirection: 'column',
+        alignItems: 'flex-start',
         textDecoration: 'none',
-    },
-    logoIcon: {
-        width: '36px',
-        height: '36px',
-        backgroundColor: 'var(--brand-secondary)',
-        borderRadius: '10px',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
+        transition: 'opacity 0.2s',
     },
     logoText: {
-        fontFamily: 'Outfit',
-        fontWeight: 700,
-        fontSize: '1.4rem',
-        color: 'var(--brand-secondary)',
+        fontFamily: 'Outfit, sans-serif',
+        fontSize: '24px',
+        fontWeight: 800,
+        color: '#ffffff',
+        letterSpacing: '1px',
+    },
+    logoTagline: {
+        fontSize: '10px',
+        color: 'var(--text-muted)',
+        textTransform: 'uppercase',
+        letterSpacing: '2px',
+        marginTop: '-4px',
     },
     searchContainer: {
-        position: 'relative',
         flex: 1,
-        maxWidth: '480px',
-        margin: '0 24px',
+        maxWidth: '700px',
+        margin: '0 40px',
     },
-    searchIcon: {
-        position: 'absolute',
-        left: '16px',
-        top: '50%',
-        transform: 'translateY(-50%)',
+    searchWrapper: {
+        position: 'relative',
+        display: 'flex',
+        alignItems: 'center',
+        backgroundColor: 'rgba(255, 255, 255, 0.1)',
+        borderRadius: 'var(--radius-md)',
+        padding: '2px',
+        border: '1px solid rgba(255, 255, 255, 0.15)',
+        transition: 'all 0.3s ease',
     },
     searchInput: {
         width: '100%',
-        padding: '12px 16px 12px 42px',
-        borderRadius: '99px',
-        border: '1px solid #e2e8f0',
-        backgroundColor: '#f8fafc',
-        fontSize: '0.9rem',
-        color: 'var(--text-main)',
+        padding: '10px 16px',
+        backgroundColor: 'transparent',
+        border: 'none',
+        fontSize: '14px',
+        color: '#ffffff',
         outline: 'none',
-        transition: 'all 0.2s',
+    },
+    searchBtn: {
+        backgroundColor: 'var(--brand-primary)',
+        borderRadius: 'var(--radius-sm)',
+        width: '40px',
+        height: '36px',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        cursor: 'pointer',
+        border: 'none',
+        margin: '2px',
     },
     actionsContainer: {
         display: 'flex',
         alignItems: 'center',
-        gap: '24px',
+        gap: '32px',
     },
-    iconButton: {
-        position: 'relative',
+    actionItem: {
+        display: 'flex',
+        alignItems: 'center',
+        gap: '12px',
+        color: '#ffffff',
+        cursor: 'pointer',
+        textDecoration: 'none',
+        transition: 'opacity 0.2s',
+    },
+    actionLabel: {
+        fontSize: '10px',
+        color: 'var(--text-muted)',
+        textTransform: 'uppercase',
+        letterSpacing: '1px',
+    },
+    actionText: {
+        fontSize: '15px',
+        fontWeight: 600,
+        color: '#ffffff',
+    },
+    userName: {
+        fontSize: '14px',
+        fontWeight: 700,
+        color: '#ffffff',
+    },
+    avatarCircle: {
+        width: '36px',
+        height: '36px',
+        borderRadius: '50%',
+        backgroundColor: 'rgba(255, 255, 255, 0.1)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        width: '40px',
-        height: '40px',
-        borderRadius: '50%',
-        backgroundColor: '#f8fafc',
-        transition: 'background-color 0.2s',
-        color: 'var(--text-main)',
+        color: '#ffffff',
+        fontWeight: 700,
+        fontSize: '14px',
+        border: '1px solid rgba(255, 255, 255, 0.2)',
+    },
+    loginCardBtn: {
+        display: 'flex',
+        alignItems: 'center',
+        gap: '8px',
+        padding: '8px 20px',
+        borderRadius: 'var(--radius-md)',
+        backgroundColor: 'rgba(255, 255, 255, 0.1)',
+        color: '#ffffff',
+        fontWeight: 700,
+        fontSize: '14px',
+        textDecoration: 'none',
+        border: '1px solid rgba(255, 255, 255, 0.2)',
+        transition: 'all 0.2s',
+    },
+    iconWrapper: {
+        position: 'relative',
+        display: 'flex',
     },
     badge: {
         position: 'absolute',
-        top: '-4px',
-        right: '-4px',
-        backgroundColor: 'var(--brand-accent)',
-        color: 'white',
-        fontSize: '0.65rem',
-        fontWeight: 700,
-        width: '18px',
-        height: '18px',
-        borderRadius: '50%',
+        top: '-12px',
+        right: '-12px',
+        backgroundColor: 'var(--brand-secondary)',
+        color: '#0f172a',
+        fontSize: '11px',
+        fontWeight: 800,
+        width: '20px',
+        height: '20px',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
+        borderRadius: '50%',
+        border: '2px solid var(--bg-header)',
     },
-    userAvatar: {
+    userGroup: {
+        position: 'relative',
+    },
+    profileDropdown: {
+        position: 'absolute',
+        top: 'calc(100% + 15px)',
+        right: '0',
+        minWidth: '240px',
+        padding: '0',
+        zIndex: 100,
+    },
+    dropdownHeader: {
+        padding: '16px 20px',
+        borderBottom: '1px solid var(--border-light)',
+        backgroundColor: '#f8fafc',
+    },
+    dropdownUserTitle: {
+        fontWeight: 700,
+        fontSize: '14px',
+        color: 'var(--text-main)',
+    },
+    dropdownUserSub: {
+        fontSize: '12px',
+        color: 'var(--text-muted)',
+        marginTop: '2px',
+    },
+    dropdownSection: {
+        padding: '8px 0',
+    },
+    dropdownItem: {
+        display: 'block',
+        padding: '10px 20px',
+        fontSize: '14px',
+        color: 'var(--text-main)',
+        textDecoration: 'none',
+        transition: 'background-color 0.2s',
+    },
+    dropdownDivider: {
+        height: '1px',
+        backgroundColor: 'var(--border-light)',
+        margin: '8px 0',
+    },
+    dropdownLogoutBtn: {
+        width: '100%',
+        textAlign: 'left',
+        padding: '10px 20px',
+        backgroundColor: 'transparent',
+        border: 'none',
+        color: 'var(--brand-danger)',
+        fontWeight: 600,
+        cursor: 'pointer',
+        fontSize: '14px',
+    },
+    notifDropdown: {
+        position: 'absolute',
+        top: 'calc(100% + 15px)',
+        right: '-60px',
+        width: '320px',
+        padding: '0',
+        zIndex: 100,
+    },
+    notifScrollArea: {
+        maxHeight: '400px',
+        overflowY: 'auto',
+    },
+    notifItem: {
+        display: 'flex',
+        gap: '12px',
+        padding: '16px 20px',
+        borderBottom: '1px solid var(--border-light)',
+        cursor: 'pointer',
+        transition: 'background-color 0.2s',
+    },
+    notifIconBox: {
         width: '32px',
         height: '32px',
-        borderRadius: '50%',
-        backgroundColor: 'var(--brand-primary)',
-        color: 'white',
+        borderRadius: '8px',
+        backgroundColor: 'rgba(79, 70, 229, 0.1)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        fontWeight: 700,
-        fontSize: '1rem',
+        flexShrink: 0,
     },
-    btnPrimary: {
-        padding: '8px 16px',
-        backgroundColor: 'var(--brand-primary)',
-        color: 'white',
-        borderRadius: '8px',
-        textDecoration: 'none',
-        fontSize: '0.75rem',
-        fontWeight: 700,
-        letterSpacing: '0.05em',
-        transition: 'background-color 0.2s',
+    notifBody: {
+        flex: 1,
     },
-    btnSecondary: {
-        padding: '8px 16px',
-        backgroundColor: 'var(--brand-secondary)',
-        color: 'white',
-        borderRadius: '8px',
-        textDecoration: 'none',
-        fontSize: '0.75rem',
+    notifTitle: {
+        fontSize: '13px',
         fontWeight: 700,
-        letterSpacing: '0.05em',
-        transition: 'background-color 0.2s',
-    },
-    btnOutline: {
-        padding: '8px 16px',
-        border: '1px solid #e2e8f0',
-        backgroundColor: 'transparent',
         color: 'var(--text-main)',
-        borderRadius: '8px',
-        textDecoration: 'none',
-        fontSize: '0.75rem',
-        fontWeight: 700,
-        letterSpacing: '0.05em',
-        transition: 'background-color 0.2s',
+        marginBottom: '2px',
     },
-    btnDanger: {
-        padding: '8px 16px',
-        backgroundColor: 'transparent',
-        color: '#ef4444',
-        border: 'none',
-        fontSize: '0.75rem',
-        fontWeight: 700,
-        letterSpacing: '0.05em',
-        cursor: 'pointer',
+    notifMsg: {
+        fontSize: '12px',
+        color: 'var(--text-muted)',
+        lineHeight: '1.4',
     },
-    mobileMenuBtn: {
-        display: 'none', // Hidden on desktop
-        background: 'none',
-        border: 'none',
-        color: 'var(--text-main)',
-        cursor: 'pointer',
+    emptyNotif: {
+        padding: '32px 20px',
+        textAlign: 'center',
+        fontSize: '13px',
+        color: 'var(--text-muted)',
     },
     bottomNav: {
-        borderTop: '1px solid #f1f5f9',
-        padding: '0 3rem',
-        maxWidth: '1400px',
-        margin: '0 auto',
-        width: '100%',
+        backgroundColor: '#ffffff',
+        height: '42px',
+        boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
+        display: 'flex',
+        alignItems: 'center',
     },
     navLinks: {
         listStyle: 'none',
         display: 'flex',
         gap: '32px',
         margin: 0,
-        padding: '12px 0',
-        overflowX: 'auto',
+        padding: 0,
+        width: '101%',
     },
     navLinkBtn: {
-        background: 'none',
+        backgroundColor: 'transparent',
         border: 'none',
-        fontSize: '0.9rem',
-        fontWeight: 500,
-        color: 'var(--text-main)',
+        fontSize: '13px',
         cursor: 'pointer',
-        whiteSpace: 'nowrap',
-        padding: '4px 0',
+        padding: '8px 0',
+        textTransform: 'uppercase',
+        letterSpacing: '0.5px',
+        transition: 'all 0.2s',
     }
 };
 
