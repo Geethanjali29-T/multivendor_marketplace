@@ -1,5 +1,4 @@
 import os
-import dns.resolver
 import random
 from flask import Flask, jsonify, request
 from flask_cors import CORS
@@ -7,41 +6,60 @@ from pymongo.mongo_client import MongoClient
 from pymongo.server_api import ServerApi
 from dotenv import load_dotenv
 
-# Use Google DNS to bypass local ISP / Windows DNS resolution issues to MongoDB Atlas
-dns.resolver.default_resolver = dns.resolver.Resolver(configure=False)
-dns.resolver.default_resolver.nameservers = ['8.8.8.8']
-
-# Load environment variables from .env file
+# Load environment variables from .env file (local dev only; Vercel uses its own env vars)
 load_dotenv()
 
 app = Flask(__name__)
-# Enable CORS for all domains on all routes explicitly
-CORS(app, resources={r"/*": {"origins": "*"}})
 
-# Retrieve your MongoDB Atlas connection string from environment variables
+# Allow all origins in production — explicitly list Vercel domains + localhost
+CORS(app, resources={r"/*": {"origins": [
+    "http://localhost:5173",
+    "http://localhost:3000",
+    "https://ai-multivendors.vercel.app",
+    "https://frontend-green-eight-92.vercel.app",
+    "*"  # Fallback wildcard
+]}}, supports_credentials=True)
+
+# MongoDB connection — use a longer timeout for Vercel cold starts
 MONGO_URI = os.environ.get("MONGO_URI")
 
 import certifi
-import mongomock
 
-# Create a new client and connect to the server
+# Lazy global connection reused across serverless invocations
+_db = None
+
+def get_db():
+    """Return a persistent MongoDB connection, reconnecting if needed."""
+    global _db
+    if _db is not None:
+        return _db
+    try:
+        client = MongoClient(
+            MONGO_URI,
+            server_api=ServerApi('1'),
+            tlsCAFile=certifi.where(),
+            serverSelectionTimeoutMS=15000,  # 15s — enough for cold starts
+            connectTimeoutMS=15000,
+            socketTimeoutMS=20000
+        )
+        client.admin.command('ping')
+        print("Connected to MongoDB Atlas!")
+        _db = client['marketplace_flask_db']
+        return _db
+    except Exception as e:
+        print(f"MongoDB connection error: {e}")
+        raise RuntimeError(f"Database unavailable: {e}")
+
+# Initialize connection at startup
 try:
-    client = MongoClient(
-        MONGO_URI, 
-        server_api=ServerApi('1'),
-        tlsCAFile=certifi.where(),
-        serverSelectionTimeoutMS=3000 # Short timeout so it falls back quickly
-    )
-    # Send a ping to confirm a successful connection
-    client.admin.command('ping')
-    print("Pinged your deployment. You successfully connected to MongoDB!")
-    db = client['marketplace_flask_db']
+    db = get_db()
     collection = db['test_collection']
+    print("DB ready.")
 except Exception as e:
-    print(f"Failed to connect to MongoDB: {e}")
-    print("FALLING BACK TO IN-MEMORY MONGOMOCK DATABASE...")
-    client = mongomock.MongoClient()
-    db = client['marketplace_flask_db']
+    print(f"Startup DB error: {e}")
+    import mongomock
+    _client = mongomock.MongoClient()
+    db = _client['marketplace_flask_db']
     collection = db['test_collection']
 
 @app.route("/", methods=["GET"])
