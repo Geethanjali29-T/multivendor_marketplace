@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
     LayoutDashboard, ShoppingCart, Package, Grid, DollarSign, Tag, Users, MessageSquare,
-    RefreshCcw, Calendar, Star, Bug, HelpCircle, BarChart2, Settings, LogOut,
+    RefreshCcw, Calendar, Star, Bug, HelpCircle, BarChart2, Settings, LogOut, TrendingUp, ShoppingBag,
     Search, Bell, MessageCircle, MoveLeft, ChevronDown, Plus, Download, XCircle, CheckCircle, AlertTriangle, ShieldCheck, BarChart3, Globe, Zap, Activity, Database, Shield
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';

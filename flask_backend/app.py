@@ -385,12 +385,23 @@ def get_user_notifications():
         
     return jsonify(notifications), 200
 
-@app.route("/api/vendors/my-shop/", methods=["GET"])
+@app.route("/api/vendors/my-shop/", methods=["GET", "PUT"])
 def get_my_shop():
-    """Get the shop details for the logged-in vendor."""
+    """Get or update the shop details for the logged-in vendor."""
     user = get_current_user()
-    if not user or user.get("role") != "VENDOR":
+    if not user or user.get("role", "").lower() != "vendor":
          return jsonify({"detail": "Unauthorized"}), 401
+    
+    if request.method == "PUT":
+        # Update shop data
+        data = request.json or {}
+        db['vendors'].update_one(
+            {"username": user["username"]},
+            {"$set": data},
+            upsert=True
+        )
+        updated = db['vendors'].find_one({"username": user["username"]})
+        return jsonify(convert_id(updated)), 200
          
     vendor = db['vendors'].find_one({"username": user["username"]})
     if not vendor:
