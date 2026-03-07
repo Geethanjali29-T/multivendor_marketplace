@@ -50,24 +50,24 @@ def get_db():
         print(f"MongoDB connection error: {e}")
         raise RuntimeError(f"Database unavailable: {e}")
 
-# Initialize connection at startup
+# Initialize connection at startup (best effort — no mongomock fallback)
 try:
     db = get_db()
     collection = db['test_collection']
     print("DB ready.")
 except Exception as e:
-    print(f"Startup DB error: {e}")
-    import mongomock
-    _client = mongomock.MongoClient()
-    db = _client['marketplace_flask_db']
-    collection = db['test_collection']
+    print(f"Startup DB error (will retry per-request): {e}")
+    db = None
+    collection = None
 
 @app.route("/", methods=["GET"])
 def index():
     """Health check endpoint."""
-    if client:
-        return jsonify({"status": "success", "message": "Flask app running and connected to MongoDB Atlas!"}), 200
-    return jsonify({"status": "warning", "message": "Flask app running, but NOT connected to MongoDB Atlas."}), 200
+    try:
+        get_db().command('ping')
+        return jsonify({"status": "ok", "message": "Flask connected to MongoDB!"}), 200
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 503
 
 # ==========================================
 # DATABASE SEEDING
@@ -163,7 +163,7 @@ def seed_database():
         ])
         print("Database seeded completely with new dynamic data.")
 
-if client:
+if db is not None:
     seed_database()
 
 import jwt
