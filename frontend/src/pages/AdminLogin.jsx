@@ -18,7 +18,13 @@ const AdminLogin = () => {
         setLoading(true);
 
         try {
-            await login(formData.username, formData.password, 'admin');
+            const loggedInUser = await login(formData.username, formData.password);
+            // Validate that the user has ADMIN role
+            if (!loggedInUser || !['admin', 'ADMIN'].includes(loggedInUser.role)) {
+                setError('Access denied. This account does not have admin privileges.');
+                setLoading(false);
+                return;
+            }
             navigate('/admin');
         } catch (err) {
             setError(err.message || 'Authorization failed. Invalid credentials or insufficient clearance.');

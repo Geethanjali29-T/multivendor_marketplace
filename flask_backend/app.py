@@ -213,21 +213,25 @@ def register_user():
 
 @app.route("/api/users/login/", methods=["POST"])
 def login_user():
-    """Manual standard Email & Password JWT Login."""
+    """Manual standard Email & Password JWT Login. Accepts email OR username."""
     data = request.json or {}
-    email = data.get("email")
+    identifier = data.get("email")  # Could be email or username
     password = data.get("password")
     
-    if not email or not password:
-        return jsonify({"detail": "Please provide email and password"}), 400
+    if not identifier or not password:
+        return jsonify({"detail": "Please provide email/username and password"}), 400
+    
+    # Try matching by email first, then by username
+    user = db['users'].find_one({"email": identifier})
+    if not user:
+        user = db['users'].find_one({"username": identifier})
         
-    user = db['users'].find_one({"email": email})
     if not user or "password" not in user or not check_password_hash(user["password"], password):
         return jsonify({"detail": "Invalid credentials"}), 401
         
-    # Generate JWT Token for manual users
+    # Generate JWT Token
     token = jwt.encode({
-        "email": email,
+        "email": user["email"],
         "role": user.get("role", "BUYER"),
         "exp": datetime.utcnow() + timedelta(days=7)
     }, SECRET_KEY, algorithm="HS256")
