@@ -1,6 +1,6 @@
 import { auth } from '../firebase';
 
-const API_BASE_URL = 'http://localhost:5000/api';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
 
 // Utility for getting the auth token based on Firebase OR JWT
 const getAuthHeaders = () => {

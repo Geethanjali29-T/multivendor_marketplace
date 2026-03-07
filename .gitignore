@@ -6,6 +6,8 @@
 .env.local
 .env.*.local
 *.env
+/frontend/.env
+/frontend/.env.production
 
 # ==========================
 # PYTHON / FLASK BACKEND

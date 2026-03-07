@@ -1,6 +1,9 @@
-Flask==3.0.3
-pymongo[srv]==4.6.3
-python-dotenv==1.0.1
-flask-cors==4.0.0
-PyJWT==2.8.0
-Werkzeug==3.0.3
+flask
+flask-cors
+pymongo[srv]
+python-dotenv
+PyJWT
+certifi
+dnspython
+mongomock
+Werkzeug
