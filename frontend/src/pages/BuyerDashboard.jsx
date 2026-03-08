@@ -3,6 +3,8 @@ import { ShoppingBag, User, Settings, Package, Heart, LogOut, ChevronRight, MapP
 import { useAuth } from '../contexts/AuthContext';
 import { api } from '../services/api';
 import { Link } from 'react-router-dom';
+import { jsPDF } from 'jspdf';
+import 'jspdf-autotable';
 import './BuyerDashboard.css';
 
 const BuyerDashboard = () => {
@@ -11,10 +13,7 @@ const BuyerDashboard = () => {
     const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState('orders');
 
-    const [wishlist, setWishlist] = useState([
-        { id: 101, name: 'Mechanical Keyboard Pro', price: 12999, image: 'https://images.unsplash.com/photo-1595225476474-87563907a212?w=400' },
-        { id: 102, name: 'Noise Cancelling Headphones', price: 19999, image: 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=400' }
-    ]);
+    const [wishlist, setWishlist] = useState(user?.wishlist || []);
 
     const [addresses, setAddresses] = useState([
         { id: 1, type: 'Home', address: '123 Tech Park, Cyber City, Delhi', isDefault: true },
@@ -38,6 +37,63 @@ const BuyerDashboard = () => {
         };
         fetchOrders();
     }, [user]);
+
+    const handleDownloadInvoice = (order) => {
+        const doc = new jsPDF();
+
+        // Add Header
+        doc.setFontSize(22);
+        doc.setTextColor(40, 70, 229);
+        doc.text('TRADELINK MARKETPLACE', 105, 20, { align: 'center' });
+
+        doc.setFontSize(10);
+        doc.setTextColor(100);
+        doc.text('PREMIUM E-COMMERCE ECOSYSTEM', 105, 26, { align: 'center' });
+
+        doc.setDrawColor(230);
+        doc.line(20, 32, 190, 32);
+
+        doc.setFontSize(12);
+        doc.setTextColor(33);
+        doc.text(`INVOICE: #INV-${String(order._id || order.id).slice(-6).toUpperCase()}`, 20, 45);
+        doc.text(`DATE: ${new Date(order.created_at || Date.now()).toLocaleDateString()}`, 190, 45, { align: 'right' });
+
+        doc.setFontSize(10);
+        doc.text('BILL TO:', 20, 60);
+        doc.setFontSize(12);
+        doc.text((user?.username || 'GUEST').toUpperCase(), 20, 66);
+        doc.setFontSize(10);
+        doc.setTextColor(100);
+        doc.text(user?.email || '', 20, 71);
+
+        const tableColumn = ["Item Description", "Price", "Qty", "Total"];
+        const tableRows = (order.items || []).map(item => [
+            item.name,
+            `INR ${item.price.toLocaleString()}`,
+            item.quantity,
+            `INR ${(item.price * item.quantity).toLocaleString()}`
+        ]);
+
+        doc.autoTable({
+            startY: 85,
+            head: [tableColumn],
+            body: tableRows,
+            theme: 'grid',
+            headStyles: { fillColor: [40, 70, 229], textColor: [255, 255, 255] },
+            alternateRowStyles: { fillColor: [249, 250, 251] }
+        });
+
+        const finalY = doc.previousAutoTable.finalY + 10;
+        doc.setFontSize(14);
+        doc.setTextColor(33);
+        doc.text(`TOTAL AMOUNT: INR ${order.total_amount.toLocaleString()}`, 190, finalY, { align: 'right' });
+
+        doc.setFontSize(10);
+        doc.setTextColor(150);
+        doc.text('Thank you for choosing TradeLink.', 105, finalY + 30, { align: 'center' });
+
+        doc.save(`Invoice_${String(order._id || order.id).slice(-8)}.pdf`);
+    };
 
     const saveProfileUpdates = async (updates) => {
         try {
@@ -127,6 +183,7 @@ const BuyerDashboard = () => {
                     </div>
                     <div className="buyer-menu-items">
                         <button className={`buyer-menu-item ${activeTab === 'wishlist' ? 'active' : ''}`} onClick={() => setActiveTab('wishlist')}>Saved Items</button>
+                        <button className={`buyer-menu-item ${activeTab === 'payments' ? 'active' : ''}`} onClick={() => setActiveTab('payments')}>Payment Methods</button>
                         <button className="buyer-menu-item">Followed Shops</button>
                     </div>
                 </div>
@@ -169,10 +226,11 @@ const BuyerDashboard = () => {
                             <div className="buyer-status-area">
                                 <div className="buyer-status-text">
                                     <StatusDot status={order.status} />
-                                    {order.status?.toUpperCase() || 'PROCESSING'}
-                                </div>
-                                <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '8px', lineHeight: '1.4' }}>
                                     Current Status: Refined logistics update pending.
+                                </div>
+                                <div style={{ display: 'flex', gap: '12px', marginTop: '16px' }}>
+                                    <Link to="/orders" className="buyer-btn-ghost sm" style={{ padding: '6px 12px', fontSize: '11px' }}>TRACK ORDER</Link>
+                                    <button onClick={() => handleDownloadInvoice(order)} className="buyer-btn-ghost sm" style={{ padding: '6px 12px', fontSize: '11px' }}>VIEW INVOICE</button>
                                 </div>
                             </div>
                         </div>
@@ -251,6 +309,26 @@ const BuyerDashboard = () => {
             </div>
         </div>
     );
+    const renderPayments = () => (
+        <div className="buyer-card fade-in">
+            <h3 className="buyer-card-title">Stored Payment Methods</h3>
+            <div className="buyer-order-list">
+                <div className="buyer-order-item card" style={{ padding: '24px' }}>
+                    <div style={{ backgroundColor: 'rgba(79, 70, 229, 0.1)', padding: '16px', borderRadius: '12px' }}>
+                        <CreditCard size={32} color="var(--brand-primary)" />
+                    </div>
+                    <div style={{ flex: 1, marginLeft: '20px' }}>
+                        <div style={{ fontWeight: 800, fontSize: '16px', color: 'var(--text-main)' }}>Razorpay (Test Mode Active)</div>
+                        <div style={{ fontSize: '14px', color: 'var(--text-muted)', marginTop: '4px' }}>Fast and secure payments integrated.</div>
+                    </div>
+                    <span style={{ background: '#dcfce7', color: '#166534', padding: '4px 12px', fontSize: '10px', fontWeight: 800, borderRadius: '20px' }}>LINKED</span>
+                </div>
+            </div>
+            <div style={{ marginTop: '32px', padding: '24px', border: '1px dashed var(--border-light)', borderRadius: '16px', textAlign: 'center' }}>
+                <p style={{ color: 'var(--text-muted)', fontSize: '14px' }}>More payment methods coming soon.</p>
+            </div>
+        </div>
+    );
 
     const XCircle = ({ size }) => (
         <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><line x1="15" y1="9" x2="9" y2="15" /><line x1="9" y1="9" x2="15" y2="15" /></svg>
@@ -263,6 +341,7 @@ const BuyerDashboard = () => {
                 {activeTab === 'orders' && renderOrders()}
                 {activeTab === 'wishlist' && renderWishlist()}
                 {activeTab === 'addresses' && renderAddresses()}
+                {activeTab === 'payments' && renderPayments()}
                 {activeTab === 'profile' && (
                     <div className="buyer-card fade-in">
                         <h3 className="buyer-card-title">Personal Portfolio</h3>

@@ -98,19 +98,21 @@ const AdminDashboard = () => {
     const fetchData = async () => {
         try {
             const [buyers, vendors, analytics] = await Promise.all([
-                api.getAdminBuyers(),
-                api.getAdminVendors(),
-                api.getAdminAnalytics()
+                api.getAdminBuyers().catch(() => []),
+                api.getAdminVendors().catch(() => []),
+                api.getAdminAnalytics().catch(() => ({}))
             ]);
+            const buyersArray = Array.isArray(buyers) ? buyers : [];
+            const vendorsArray = Array.isArray(vendors) ? vendors : [];
             setData(prev => ({
                 ...prev,
-                buyers: buyers,
-                vendors: vendors,
+                buyers: buyersArray,
+                vendors: vendorsArray,
                 stats: {
-                    totalRevenue: `₹${analytics.total_revenue || 0}`,
-                    activeUsers: analytics.active_users || 0,
-                    activeVendors: analytics.total_vendors || 0,
-                    pendingApprovals: vendors.filter(v => !v.approved).length
+                    totalRevenue: `INR ${(analytics && analytics.total_revenue) || 0}`,
+                    activeUsers: (analytics && analytics.active_users) || 0,
+                    activeVendors: (analytics && analytics.total_vendors) || 0,
+                    pendingApprovals: vendorsArray.filter(v => !v.approved).length
                 }
             }));
         } catch (error) {
@@ -304,13 +306,13 @@ const AdminDashboard = () => {
                             </tr>
                         </thead>
                         <tbody>
-                            {data.buyers.map(user => (
-                                <tr key={user.id}>
+                            {(data?.buyers || []).map((user, i) => (
+                                <tr key={user.id || user._id || i}>
                                     <td>
-                                        <div className="cmd-table-main-text">{user.name}</div>
-                                        <div className="cmd-table-sub-text">@{user.username}</div>
+                                        <div className="cmd-table-main-text">{user.name || 'Anonymous User'}</div>
+                                        <div className="cmd-table-sub-text">@{user.username || 'unknown'}</div>
                                     </td>
-                                    <td><span className="cmd-mono">#{user.id.slice(0, 8)}</span></td>
+                                    <td><span className="cmd-mono">#{(user.id || user._id || '00000000').slice(0, 8)}</span></td>
                                     <td>{user.email || 'N/A'}</td>
                                     <td>
                                         <span className={`cmd-status-pill ${user.status === 'suspended' ? 'red' : 'green'}`}>
@@ -348,8 +350,8 @@ const AdminDashboard = () => {
                         </tr>
                     </thead>
                     <tbody>
-                        {data.vendors.map(vendor => (
-                            <tr key={vendor.id}>
+                        {data.vendors.map((vendor, i) => (
+                            <tr key={vendor.id || vendor._id || i}>
                                 <td><div className="cmd-table-main-text">{vendor.shopName || vendor.name}</div></td>
                                 <td><span className="cmd-mono">@{vendor.username}</span></td>
                                 <td>{vendor.category || 'Default'}</td>

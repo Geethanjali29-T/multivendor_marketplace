@@ -54,14 +54,14 @@ const VendorDashboard = () => {
     const navigate = useNavigate();
 
     const fetchDashboardData = async () => {
-        if (!user || user.role !== 'VENDOR') {
+        if (!user || user.role?.toUpperCase() !== 'VENDOR') {
             navigate('/login');
             return;
         }
 
         try {
             const fetchedCategories = await api.getCategories();
-            setCategories(fetchedCategories.map(c => c.name) || ['Electronics', 'Fashion', 'Home']);
+            setCategories(Array.isArray(fetchedCategories) ? fetchedCategories.map(c => c.name) : ['Electronics', 'Fashion', 'Home']);
 
             const [vOrders, vAnalytics, allProducts, myShop] = await Promise.all([
                 api.getVendorOrders(),
@@ -69,10 +69,22 @@ const VendorDashboard = () => {
                 api.getProducts(),
                 api.getMyShop().catch(() => null)
             ]);
-            setOrders(vOrders.reverse());
-            setAnalytics(vAnalytics);
-            setProducts(allProducts.filter(p => p.vendor_username === user.username));
-            if (myShop) setShopData(myShop);
+            setOrders(Array.isArray(vOrders) ? [...vOrders].reverse() : []);
+            setAnalytics(vAnalytics || { total_revenue: 0, low_stock_alerts: [] });
+            setProducts(Array.isArray(allProducts) ? allProducts.filter(p => p.vendor_username === user.username) : []);
+            if (myShop) {
+                setShopData({
+                    shop_name: myShop.name || myShop.shop_name || '',
+                    category: myShop.category || '',
+                    location: myShop.location || '',
+                    description: myShop.description || '',
+                    phone: myShop.phone || '',
+                    gstin: myShop.gstin || '',
+                    shop_photo: myShop.shop_photo || myShop.shopPhotoUrl || '',
+                    logo_image: myShop.logo_image || myShop.logoUrl || '',
+                    banner_image: myShop.banner_image || myShop.bannerUrl || ''
+                });
+            }
         } catch (error) {
             console.error("Failed to fetch dashboard data", error);
         } finally {
@@ -124,16 +136,17 @@ const VendorDashboard = () => {
         }
     };
 
+    const ordersArray = Array.isArray(orders) ? orders : [];
     const counts = {
-        all: orders.length,
-        processing: orders.filter(o => o.status === 'Processing').length,
-        shipped: orders.filter(o => o.status === 'Shipped').length,
-        canceled: orders.filter(o => o.status === 'Canceled').length,
+        all: ordersArray.length,
+        processing: ordersArray.filter(o => o.status === 'Processing').length,
+        shipped: ordersArray.filter(o => o.status === 'Shipped').length,
+        canceled: ordersArray.filter(o => o.status === 'Canceled').length,
     };
 
-    let filteredOrders = orders;
+    let filteredOrders = ordersArray;
     if (orderStatusFilter !== 'All') {
-        filteredOrders = orders.filter(o => o.status === orderStatusFilter);
+        filteredOrders = ordersArray.filter(o => o.status === orderStatusFilter);
     }
 
     const handleOrderStatusUpdate = async (orderId, newStatus) => {
@@ -200,6 +213,9 @@ const VendorDashboard = () => {
                     }
                 </button>
                 <button className={`vendor-nav-btn ${activeTab === 'products' ? 'active' : ''}`} onClick={() => setActiveTab('products')}>
+                    <Package size={18} /> INVENTORY
+                </button>
+                <button className={`vendor-nav-btn ${activeTab === 'settings' ? 'active' : ''}`} onClick={() => setActiveTab('settings')}>
                     <Settings size={18} /> Shop Settings
                 </button>
                 <button className="vendor-nav-btn" onClick={() => navigate(`/shop/${user.username}`)}>
@@ -299,13 +315,13 @@ const VendorDashboard = () => {
                 </div>
             </div>
 
-            {analytics?.low_stock_alerts?.length > 0 && (
+            {(analytics?.low_stock_alerts || []).length > 0 && (
                 <div style={{ background: '#fff1f2', border: '1px solid #fecdd3', padding: '20px', borderRadius: '16px', marginBottom: '32px', display: 'flex', alignItems: 'center', gap: '16px' }}>
                     <AlertTriangle size={24} color="#e11d48" />
                     <div style={{ flex: 1 }}>
                         <div style={{ fontWeight: 800, color: '#9f1239', fontSize: '0.95rem' }}>Low Stock Inventory Alert</div>
                         <div style={{ color: '#be123c', fontSize: '0.85rem', marginTop: '4px' }}>
-                            The following items are running low: {analytics.low_stock_alerts.map(p => `${p.name} (${p.stock} units)`).join(', ')}.
+                            The following items are running low: {(analytics?.low_stock_alerts || []).map(p => `${p.name} (${p.stock} units)`).join(', ')}.
                         </div>
                     </div>
                 </div>
@@ -325,14 +341,14 @@ const VendorDashboard = () => {
                                 </tr>
                             </thead>
                             <tbody>
-                                {orders.slice(0, 5).map(order => (
-                                    <tr key={order.id} style={{ borderBottom: '1px solid #f8fafc' }}>
-                                        <td style={{ padding: '16px 12px', fontSize: '0.85rem', fontWeight: 600 }}>#{order.id.slice(-6).toUpperCase()}</td>
-                                        <td style={{ padding: '16px 12px', fontSize: '0.85rem' }}>{order.buyer_username}</td>
-                                        <td style={{ padding: '16px 12px', fontSize: '0.85rem', fontWeight: 700 }}>₹{order.total_amount}</td>
+                                {ordersArray.slice(0, 5).map((order, idx) => (
+                                    <tr key={order.id || order._id || idx} style={{ borderBottom: '1px solid #f8fafc' }}>
+                                        <td style={{ padding: '16px 12px', fontSize: '0.85rem', fontWeight: 600 }}>#{(order.id || order._id || '000000').slice(-6).toUpperCase()}</td>
+                                        <td style={{ padding: '16px 12px', fontSize: '0.85rem' }}>{order.buyer_username || 'Guest'}</td>
+                                        <td style={{ padding: '16px 12px', fontSize: '0.85rem', fontWeight: 700 }}>₹{order.total_amount || 0}</td>
                                         <td style={{ padding: '16px 12px' }}>
                                             <span className={`status-pill ${order.status === 'Processing' ? 'pending' : order.status === 'Delivered' ? 'success' : ''}`}>
-                                                {order.status}
+                                                {order.status || 'Pending'}
                                             </span>
                                         </td>
                                     </tr>
@@ -395,9 +411,9 @@ const VendorDashboard = () => {
                     {filteredOrders.length === 0 ? (
                         <div style={{ textAlign: 'center', padding: '60px', color: 'var(--vendor-text-muted)' }}>No orders found for this category.</div>
                     ) : (
-                        filteredOrders.map(order => (
-                            <div key={order.id} className="vendor-table-row" style={{ display: 'grid', gridTemplateColumns: '1fr 2fr 1fr 1.5fr 1fr 1fr', padding: '16px 24px', alignItems: 'center', fontSize: '0.9rem' }}>
-                                <div style={{ fontWeight: 700 }}>#{order.id.slice(-6).toUpperCase()}</div>
+                        filteredOrders.map((order, idx) => (
+                            <div key={order.id || order._id || idx} className="vendor-table-row" style={{ display: 'grid', gridTemplateColumns: '1fr 2fr 1fr 1.5fr 1fr 1fr', padding: '16px 24px', alignItems: 'center', fontSize: '0.9rem' }}>
+                                <div style={{ fontWeight: 700 }}>#{(order.id || order._id || '').slice(-6).toUpperCase()}</div>
                                 <div>
                                     <div style={{ fontWeight: 600 }}>{order.buyer_username}</div>
                                     <div style={{ fontSize: '0.75rem', color: 'var(--vendor-text-muted)' }}>{order.items?.length} items</div>
@@ -442,8 +458,8 @@ const VendorDashboard = () => {
                         <p style={{ color: 'var(--vendor-text-muted)' }}>Your digital storefront is empty. Start adding products!</p>
                     </div>
                 ) : (
-                    products.map(product => (
-                        <div key={product.id} className="vendor-table-row" style={{ overflow: 'hidden', padding: 0 }}>
+                    products.map((product, idx) => (
+                        <div key={product.id || product._id || idx} className="vendor-table-row" style={{ overflow: 'hidden', padding: 0 }}>
                             <div style={{ height: '200px', backgroundColor: '#f8fafc', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                                 {product.image ? (
                                     <img src={product.image} alt={product.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />

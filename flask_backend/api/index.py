@@ -812,8 +812,8 @@ def chat_mock():
              
     # Fallback to standard mock
     response = "I'm your TradeLink assistant. How can I help you today?"
-    if "vendor" in msg:
-        response = "Browse our 'Partners' page to see all verified merchants like Precision Electronics and others."
+    if "vendor" in msg or "shop" in msg:
+        response = "Browse our 'Partners' page to see all our verified merchants across different categories."
     elif "product" in msg or "buy" in msg:
         response = "You can find a wide range of products from Electronics to Home & Kitchen in our catalog."
     elif "order" in msg:

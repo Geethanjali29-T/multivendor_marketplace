@@ -13,7 +13,7 @@ const ProductDetailsPage = () => {
     const location = useLocation();
     const navigate = useNavigate();
     const { addToCart } = useCart();
-    const { user } = useAuth();
+    const { user, updateUser } = useAuth();
 
     // Product is passed via location.state when navigating
     const product = location.state?.product;
@@ -54,9 +54,23 @@ const ProductDetailsPage = () => {
             }
         };
         fetchRelated();
+        fetchRelated();
+
+        const fetchReviews = async () => {
+            try {
+                const data = await api.getProductReviews(product._id || product.product_id);
+                setRealReviews(data);
+            } catch (e) {
+                console.error("Failed to fetch reviews", e);
+            } finally {
+                setLoadingReviews(false);
+            }
+        };
+        fetchReviews();
+
         // AI tracking
         if (category) api.trackActivity?.('view', category);
-    }, []);
+    }, [product]);
 
     const handleAddToCart = () => {
         addToCart({
@@ -93,7 +107,7 @@ const ProductDetailsPage = () => {
             const newWishlist = exists
                 ? currentWishlist.filter(i => (i.id || i._id) !== (product._id || product.product_id))
                 : [...currentWishlist, { id: product._id || product.product_id, name, price, image }];
-            await api.updateUserProfile({ wishlist: newWishlist });
+            await updateUser({ wishlist: newWishlist });
             setWishMsg(exists ? 'Removed from wishlist.' : 'Saved to wishlist!');
             setTimeout(() => setWishMsg(''), 3000);
         } catch {
@@ -102,11 +116,34 @@ const ProductDetailsPage = () => {
         }
     };
 
-    const reviews = [
-        { id: 1, user: 'Rahul S.', rating: 5, date: '2 days ago', comment: 'Excellent quality. Delivery was super fast!', verified: true },
-        { id: 2, user: 'Sneha P.', rating: 4, date: '1 week ago', comment: 'Good product, exactly as described in the images.', verified: true },
-        { id: 3, user: 'Vijay K.', rating: 5, date: '2 weeks ago', comment: 'Highly recommend. Great value for money.', verified: false }
-    ];
+    const handleSubmitReview = async (e) => {
+        e.preventDefault();
+        if (!user) {
+            setSubmitMsg('Please log in to review.');
+            return;
+        }
+        try {
+            await api.postReview({
+                product_id: product._id || product.product_id,
+                rating: reviewRating,
+                comment: reviewComment
+            });
+            setSubmitMsg('Review submitted! Refreshing...');
+            setReviewComment('');
+            // Re-fetch reviews
+            const data = await api.getProductReviews(product._id || product.product_id);
+            setRealReviews(data);
+            setTimeout(() => setSubmitMsg(''), 3000);
+        } catch (err) {
+            setSubmitMsg('Failed to submit review.');
+        }
+    };
+
+    const [realReviews, setRealReviews] = useState([]);
+    const [loadingReviews, setLoadingReviews] = useState(true);
+    const [reviewRating, setReviewRating] = useState(5);
+    const [reviewComment, setReviewComment] = useState('');
+    const [submitMsg, setSubmitMsg] = useState('');
 
     return (
         <div style={s.pageBg}>
@@ -245,6 +282,80 @@ const ProductDetailsPage = () => {
                     </div>
                 </div>
 
+                {/* Reviews Section */}
+                <div style={s.reviewsSection}>
+                    <div style={s.sectionHeader}>
+                        <h2 style={s.sectionTitle}>Customer Reviews</h2>
+                        <div style={s.overallRating}>
+                            <div style={s.ratingBig}>{product.rating || '0.0'}</div>
+                            <div style={s.ratingMeta}>
+                                <div style={s.starsRow}>
+                                    {[1, 2, 3, 4, 5].map(star => (
+                                        <Star key={star} size={16} fill={star <= (product.rating || 0) ? "#388e3c" : "none"} color="#388e3c" />
+                                    ))}
+                                </div>
+                                <div style={s.reviewCountText}>{realReviews.length} Verified Ratings</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style={s.divider} />
+
+                    <div style={s.reviewsLayout}>
+                        {/* Review Form */}
+                        <div style={s.reviewFormBox}>
+                            <h3 style={s.sectionHeading}>Rate this product</h3>
+                            <form onSubmit={handleSubmitReview}>
+                                <div style={s.starSelect}>
+                                    {[1, 2, 3, 4, 5].map(star => (
+                                        <button
+                                            key={star}
+                                            type="button"
+                                            onClick={() => setReviewRating(star)}
+                                            style={s.starBtn}
+                                        >
+                                            <Star size={24} fill={star <= reviewRating ? "#388e3c" : "none"} color="#388e3c" />
+                                        </button>
+                                    ))}
+                                </div>
+                                <textarea
+                                    placeholder="Share your experience with this product..."
+                                    style={s.revTextarea}
+                                    value={reviewComment}
+                                    onChange={(e) => setReviewComment(e.target.value)}
+                                    required
+                                />
+                                <button type="submit" style={s.submitRevBtn}>POST REVIEW</button>
+                                {submitMsg && <div style={{ ...s.infoMsg, marginTop: '12px' }}>{submitMsg}</div>}
+                            </form>
+                        </div>
+
+                        {/* Review List */}
+                        <div style={s.reviewListBox}>
+                            {loadingReviews ? (
+                                <p>Loading reviews...</p>
+                            ) : realReviews.length > 0 ? (
+                                realReviews.map(rev => (
+                                    <div key={rev._id} style={s.reviewCard}>
+                                        <div style={s.revTop}>
+                                            <span style={s.revRatingBadge}>{rev.rating} ★</span>
+                                            <span style={s.revUser}>{rev.username || 'Anonymous'}</span>
+                                            {rev.verified && <span style={s.verifiedBadge}>✓ Certified Buyer</span>}
+                                            <span style={s.revDate}>{new Date(rev.created_at).toLocaleDateString()}</span>
+                                        </div>
+                                        <p style={s.revComment}>{rev.comment}</p>
+                                    </div>
+                                ))
+                            ) : (
+                                <div style={s.noReviews}>
+                                    <Package size={48} color="#cbd5e1" />
+                                    <p>No reviews yet. Be the first to rate this product!</p>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+
 
                 {/* Related Products */}
                 {!loadingRelated && relatedProducts.length > 0 && (
@@ -345,7 +456,24 @@ const s = {
     relatedInfo: { flex: 1 },
     relatedName: { fontSize: '14px', fontWeight: 500, color: '#212121', marginBottom: '4px' },
     relatedPrice: { fontSize: '14px', fontWeight: 700, color: '#212121' },
-    disabledBtn: { flex: 1, backgroundColor: '#ccc', color: '#666', border: 'none', padding: '14px', fontSize: '14px', fontWeight: 800, borderRadius: '2px', cursor: 'not-allowed', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }
+    disabledBtn: { flex: 1, backgroundColor: '#ccc', color: '#666', border: 'none', padding: '14px', fontSize: '14px', fontWeight: 800, borderRadius: '2px', cursor: 'not-allowed', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' },
+
+    sectionHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' },
+    overallRating: { display: 'flex', alignItems: 'center', gap: '16px' },
+    ratingBig: { fontSize: '48px', fontWeight: 700, color: '#212121' },
+    ratingMeta: { display: 'flex', flexDirection: 'column', gap: '4px' },
+    starsRow: { display: 'flex', gap: '2px' },
+    reviewCountText: { fontSize: '13px', color: '#878787' },
+
+    reviewsLayout: { display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '40px' },
+    reviewFormBox: { borderRight: '1px solid #f0f0f0', paddingRight: '40px' },
+    starSelect: { display: 'flex', gap: '8px', marginBottom: '16px' },
+    starBtn: { background: 'none', border: 'none', cursor: 'pointer', padding: 0 },
+    revTextarea: { width: '100%', height: '120px', padding: '12px', border: '1px solid #e0e0e0', borderRadius: '4px', fontSize: '14px', outline: 'none', resize: 'none', marginBottom: '12px' },
+    submitRevBtn: { width: '100%', backgroundColor: '#2874f0', color: '#fff', border: 'none', padding: '12px', borderRadius: '2px', fontWeight: 700, cursor: 'pointer' },
+
+    reviewListBox: { display: 'flex', flexDirection: 'column', gap: '24px' },
+    noReviews: { textAlign: 'center', padding: '40px', color: '#94a3b8', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px' }
 };
 
 export default ProductDetailsPage;

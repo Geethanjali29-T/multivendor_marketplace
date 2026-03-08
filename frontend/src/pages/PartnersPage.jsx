@@ -229,15 +229,21 @@ const PartnersPage = ({ activeCategory = 'All', setActiveCategory }) => {
                                 {searchQuery ? `Products matching your query` : `The latest in premium ${activeCategory === 'All' ? 'marketplace' : activeCategory.toLowerCase()} selections`}
                             </p>
                         </div>
+                        {searchQuery && (
+                            <button style={styles.viewAllBtn} onClick={() => {
+                                navigate(`/?search=${encodeURIComponent(searchQuery)}`);
+                            }}>REFRESH RESULTS</button>
+                        )}
                         {!searchQuery && (
                             <button style={styles.viewAllBtn} onClick={() => {
                                 if (activeCategory !== 'All') {
-                                    navigate(`/?search=${encodeURIComponent(activeCategory)}`);
+                                    // Properly filter by category instead of searching for category name
+                                    if (setActiveCategory) setActiveCategory(activeCategory);
+                                    document.getElementById('products-grid-section')?.scrollIntoView({ behavior: 'smooth' });
                                 } else {
-                                    // If 'All', scroll to the full grid
                                     document.getElementById('products-grid-section')?.scrollIntoView({ behavior: 'smooth' });
                                 }
-                            }}>VIEW COLLECTION</button>
+                            }}>VIEW FULL COLLECTION</button>
                         )}
                     </div>
                     <div style={styles.horizontalScroll}>

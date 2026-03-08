@@ -129,18 +129,29 @@ export const AuthProvider = ({ children }) => {
     };
 
     const logout = async () => {
-        // Clear Firebase if it exists
-        await signOut(auth);
+        try {
+            await signOut(auth);
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+            setUser(null);
+        } catch (error) {
+            console.error("Error logging out:", error);
+        }
+    };
 
-        // Clear Local Storage for JWT
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
-
-        setUser(null);
+    const updateUser = async (updates) => {
+        if (!user) return null;
+        await api.updateUserProfile(updates);
+        const updatedUser = { ...user, ...updates };
+        setUser(updatedUser);
+        if (!updatedUser.isGoogleAuth) {
+            localStorage.setItem('user', JSON.stringify(updatedUser));
+        }
+        return updatedUser;
     };
 
     return (
-        <AuthContext.Provider value={{ user, setUser, login, loginWithGoogle, register, resetPassword, logout, loading }}>
+        <AuthContext.Provider value={{ user, setUser, login, loginWithGoogle, register, resetPassword, logout, updateUser, loading }}>
             {loading ? <LoadingScreen /> : children}
         </AuthContext.Provider>
     );

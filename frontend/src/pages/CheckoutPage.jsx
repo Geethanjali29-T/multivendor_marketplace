@@ -5,6 +5,57 @@ import { useCart } from '../contexts/CartContext';
 import { useAuth } from '../contexts/AuthContext';
 import { api } from '../services/api';
 
+const MockPaymentModal = ({ isOpen, amount, onConfirm, onCancel }) => {
+    if (!isOpen) return null;
+    return (
+        <div style={{
+            position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000, padding: '20px'
+        }}>
+            <div className="glass" style={{
+                width: '100%', maxWidth: '400px', backgroundColor: '#fff', borderRadius: '16px',
+                overflow: 'hidden', boxShadow: '0 20px 50px rgba(0,0,0,0.3)', border: '1px solid rgba(40,116,240,0.2)'
+            }}>
+                <div style={{ backgroundColor: '#2874f0', padding: '24px', color: '#fff', textAlign: 'center' }}>
+                    <div style={{ fontSize: '12px', fontWeight: 600, opacity: 0.9, marginBottom: '4px', letterSpacing: '1px' }}>RAZORPAY SECURE</div>
+                    <div style={{ fontSize: '24px', fontWeight: 800 }}>₹{amount.toLocaleString()}</div>
+                    <div style={{ fontSize: '13px', opacity: 0.8, marginTop: '4px' }}>TradeLink Marketplace</div>
+                </div>
+                <div style={{ padding: '32px', textAlign: 'center' }}>
+                    <div style={{ fontSize: '15px', color: '#444', marginBottom: '24px', lineHeight: 1.5 }}>
+                        This is a <strong>Simulation Mode</strong>. No real money will be charged.
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                        <button
+                            onClick={() => onConfirm(`sim_pay_${Math.floor(Math.random() * 1000000)}`)}
+                            style={{
+                                padding: '14px', borderRadius: '12px', border: 'none',
+                                backgroundColor: '#10b981', color: '#fff', fontWeight: 700,
+                                cursor: 'pointer', fontSize: '15px'
+                            }}
+                        >
+                            SIMULATE SUCCESS
+                        </button>
+                        <button
+                            onClick={onCancel}
+                            style={{
+                                padding: '14px', borderRadius: '12px', border: '1px solid #ddd',
+                                backgroundColor: '#f8fafc', color: '#64748b', fontWeight: 700,
+                                cursor: 'pointer', fontSize: '15px'
+                            }}
+                        >
+                            SIMULATE FAILURE
+                        </button>
+                    </div>
+                    <div style={{ marginTop: '24px', fontSize: '11px', color: '#94a3b8' }}>
+                        Trusted by 50,000+ businesses worldwide
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+};
+
 const CheckoutPage = () => {
     const { cartItems, getCartTotal, clearCart } = useCart();
     const { user } = useAuth();
@@ -15,6 +66,9 @@ const CheckoutPage = () => {
     const [paymentMethod, setPaymentMethod] = useState('COD');
     const [isProcessing, setIsProcessing] = useState(false);
     const [error, setError] = useState('');
+    const [showMockPay, setShowMockPay] = useState(false);
+    const [mockPayResolve, setMockPayResolve] = useState(null);
+    const [mockPayReject, setMockPayReject] = useState(null);
 
     if (cartItems.length === 0 && step !== 4) {
         return <Navigate to="/cart" />;
@@ -22,27 +76,25 @@ const CheckoutPage = () => {
 
     const handleRazorpayPayment = () => {
         return new Promise((resolve, reject) => {
+            const RAZORPAY_KEY = 'rzp_test_YOUR_KEY_HERE';
+
+            if (RAZORPAY_KEY.includes('YOUR_KEY_HERE')) {
+                setMockPayResolve(() => resolve);
+                setMockPayReject(() => reject);
+                setShowMockPay(true);
+                return;
+            }
+
             const options = {
-                key: 'rzp_test_YOUR_KEY_HERE', // In a real app, this comes from ENV
-                amount: getCartTotal() * 100, // amount in paise
+                key: RAZORPAY_KEY,
+                amount: getCartTotal() * 100,
                 currency: 'INR',
                 name: 'TradeLink Marketplace',
                 description: 'Test Transaction',
-                handler: function (response) {
-                    resolve(response.razorpay_payment_id);
-                },
-                prefill: {
-                    name: user?.username || '',
-                    email: user?.email || '',
-                },
-                theme: {
-                    color: '#2874f0',
-                },
-                modal: {
-                    ondismiss: function () {
-                        reject(new Error('Payment cancelled by user'));
-                    }
-                }
+                handler: function (response) { resolve(response.razorpay_payment_id); },
+                prefill: { name: user?.username || '', email: user?.email || '' },
+                theme: { color: '#2874f0' },
+                modal: { ondismiss: function () { reject(new Error('Payment cancelled by user')); } }
             };
             const rzp = new window.Razorpay(options);
             rzp.open();
@@ -250,6 +302,18 @@ const CheckoutPage = () => {
                     )}
                 </div>
             </div>
+            <MockPaymentModal
+                isOpen={showMockPay}
+                amount={getCartTotal()}
+                onConfirm={(id) => {
+                    if (mockPayResolve) mockPayResolve(id);
+                    setShowMockPay(false);
+                }}
+                onCancel={() => {
+                    if (mockPayReject) mockPayReject(new Error('Payment failed in simulation.'));
+                    setShowMockPay(false);
+                }}
+            />
         </div>
     );
 };

@@ -14,10 +14,45 @@ const ChatbotWidget = () => {
     const messagesEndRef = useRef(null);
 
     useEffect(() => {
-        const handleOpenChat = () => setIsOpen(true);
+        const handleOpenChat = (event) => {
+            setIsOpen(true);
+            if (event.detail && event.detail.message) {
+                const incomingMsg = event.detail.message;
+                setChatHistory(prev => [...prev, { sender: 'user', text: incomingMsg }]);
+                // Trigger auto-response for the incoming message
+                processResponse(incomingMsg);
+            }
+        };
         window.addEventListener('openChatbot', handleOpenChat);
         return () => window.removeEventListener('openChatbot', handleOpenChat);
     }, []);
+
+    const processResponse = async (userMsg) => {
+        setIsTyping(true);
+        const apiKey = localStorage.getItem('chatbot_api_key');
+        try {
+            if (apiKey) {
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                let response = "I'm analyzing your inquiry with our advanced AI engine... ";
+                if (userMsg.toLowerCase().includes('interested in products')) {
+                    response += "That's great! Are you looking for something specific from this vendor's collection?";
+                } else if (userMsg.toLowerCase().includes('order')) {
+                    response += "I can help track your order. Please provide your order ID.";
+                } else {
+                    response += "How else can I assist you today?";
+                }
+                setChatHistory(prev => [...prev, { sender: 'bot', text: response }]);
+            } else {
+                const res = await api.sendChatMessage(userMsg);
+                setChatHistory(prev => [...prev, { sender: 'bot', text: res.response }]);
+            }
+        } catch (e) {
+            setChatHistory(prev => [...prev, { sender: 'bot', text: "Service temporary unavailable. Please try again." }]);
+            setMessages(prev => [...prev, { text: "Service temporary unavailable. Please try again.", isUser: false }]);
+        } finally {
+            setIsTyping(false);
+        }
+    };
 
     useEffect(() => {
         if (messagesEndRef.current) {
@@ -25,47 +60,29 @@ const ChatbotWidget = () => {
         }
     }, [chatHistory, isOpen]);
 
+    useEffect(() => {
+        // Expose openChat to window for external triggers
+        window.openChat = (initialMsg) => {
+            setIsOpen(true);
+            if (initialMsg) {
+                setChatHistory(prev => [...prev, { sender: 'user', text: initialMsg }]);
+                processResponse(initialMsg);
+            }
+        };
+        // Cleanup function for window.openChat if component unmounts
+        return () => {
+            if (window.openChat) {
+                delete window.openChat;
+            }
+        };
+    }, []); // Run once on mount to expose the function
+
     const handleSend = async () => {
         if (!message.trim()) return;
-
         const userMsg = message.trim();
         setChatHistory(prev => [...prev, { sender: 'user', text: userMsg }]);
         setMessage('');
-        setIsTyping(true);
-
-        const apiKey = localStorage.getItem('chatbot_api_key');
-
-        try {
-            // If API key exists, simulate a more advanced response
-            if (apiKey) {
-                console.log("Using Chatbot API Key:", apiKey);
-                // Simulate delay based on "AI processing"
-                await new Promise(resolve => setTimeout(resolve, 1000));
-
-                // Context-aware response simulation
-                let response = "I'm analyzing your request with our advanced AI engine... ";
-                if (userMsg.toLowerCase().includes('order')) {
-                    response += "Your order TL-882910 is currently being processed and is expected to ship by tomorrow.";
-                } else if (userMsg.toLowerCase().includes('return')) {
-                    response += "Our return policy allows for 7-day replacements on most items. You can initiate a return from your profile.";
-                } else {
-                    response += "I'm here to help with any marketplace queries!";
-                }
-
-                setChatHistory(prev => [...prev, { sender: 'bot', text: response }]);
-            } else {
-                const res = await api.sendChatMessage(userMsg);
-                setChatHistory(prev => [...prev, { sender: 'bot', text: res.response }]);
-            }
-        } catch (e) {
-            console.error("Chat error", e);
-            setChatHistory(prev => [...prev, {
-                sender: 'bot',
-                text: "I'm sorry, I'm having trouble connecting to my servers right now. Please try again later!"
-            }]);
-        } finally {
-            setIsTyping(false);
-        }
+        await processResponse(userMsg);
     };
 
     return (

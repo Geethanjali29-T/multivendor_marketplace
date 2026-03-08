@@ -103,7 +103,11 @@ const AppContent = () => {
               </ProtectedRoute>
             } />
             <Route path="/product" element={<ProductDetailsPage />} />
-            <Route path="/orders" element={<OrdersPage />} />
+            <Route path="/orders" element={
+              <ProtectedRoute>
+                <OrdersPage />
+              </ProtectedRoute>
+            } />
           </Routes>
         </main>
       </div>

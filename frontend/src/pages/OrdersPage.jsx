@@ -1,8 +1,13 @@
+import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Package, Truck, CheckCircle, Clock, ChevronRight, ArrowLeft, MapPin, Star, ShoppingBag, ExternalLink, ShieldCheck } from 'lucide-react';
 import { api } from '../services/api';
+import { jsPDF } from 'jspdf';
+import 'jspdf-autotable';
+import { useAuth } from '../contexts/AuthContext';
 
 const OrdersPage = () => {
+    const { user } = useAuth();
     const [orders, setOrders] = useState([]);
     const [loading, setLoading] = useState(true);
     const [selectedOrderId, setSelectedOrderId] = useState(null);
@@ -11,18 +16,22 @@ const OrdersPage = () => {
         const fetchOrders = async () => {
             try {
                 const data = await api.getUserOrders();
-                setOrders(data);
-                if (data.length > 0) {
-                    setSelectedOrderId(data[0]._id);
-                }
-            } catch (error) {
-                console.error("Failed to fetch orders:", error);
+                setOrders(Array.isArray(data) ? data : []);
+            } catch (e) {
+                console.error("Failed to fetch orders", e);
+                setOrders([]);
             } finally {
                 setLoading(false);
             }
         };
         fetchOrders();
     }, []);
+
+    useEffect(() => {
+        if (orders.length > 0 && !selectedOrderId) {
+            setSelectedOrderId(orders[0]._id || orders[0].id);
+        }
+    }, [orders, selectedOrderId]);
 
     const getStatusStep = (status) => {
         const s = status?.toUpperCase();
@@ -59,29 +68,66 @@ const OrdersPage = () => {
         );
     }
 
-    const currentOrder = orders.find(o => o._id === selectedOrderId) || orders[0];
+    const currentOrder = orders.find(o => (o._id || o.id) === selectedOrderId) || orders[0];
+    if (!currentOrder) return <div style={{ textAlign: 'center', padding: '100px' }}>Loading order details...</div>;
+
     const orderStatus = getStatusStep(currentOrder.status);
 
     const handleDownloadInvoice = () => {
-        const invoiceContent = `
-            INVOICE - TRADELINK MARKETPLACE
-            Order ID: ${currentOrder._id}
-            Date: ${new Date(currentOrder.created_at).toLocaleDateString()}
-            Customer: ${currentOrder.buyer_username}
-            Total Amount: ₹${currentOrder.total_amount}
-            
-            Items:
-            ${currentOrder.items?.map(i => `- ${i.name} (x${i.quantity}): ₹${i.price}`).join('\n')}
-            
-            Thank you for shopping with us!
-        `;
-        const blob = new Blob([invoiceContent], { type: 'text/plain' });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = `Invoice_${currentOrder._id.substring(0, 8)}.txt`;
-        link.click();
-        URL.revokeObjectURL(url);
+        const doc = new jsPDF();
+
+        // Add Header
+        doc.setFontSize(22);
+        doc.setTextColor(40, 70, 229);
+        doc.text('TRADELINK MARKETPLACE', 105, 20, { align: 'center' });
+
+        doc.setFontSize(10);
+        doc.setTextColor(100);
+        doc.text('PREMIUM E-COMMERCE ECOSYSTEM', 105, 26, { align: 'center' });
+
+        doc.setDrawColor(230);
+        doc.line(20, 32, 190, 32);
+
+        doc.setFontSize(12);
+        doc.setTextColor(33);
+        doc.text(`INVOICE: #INV-${String(currentOrder._id || currentOrder.id).slice(-6).toUpperCase()}`, 20, 45);
+        doc.text(`DATE: ${new Date(currentOrder.created_at || Date.now()).toLocaleDateString()}`, 190, 45, { align: 'right' });
+
+        doc.setFontSize(10);
+        doc.text('BILL TO:', 20, 60);
+        doc.setFontSize(12);
+        doc.text((user?.username || 'VALUED CUSTOMER').toUpperCase(), 20, 66);
+        doc.setFontSize(10);
+        doc.setTextColor(100);
+        doc.text(user?.email || '', 20, 71);
+
+        const tableColumn = ["Item Description", "Price", "Qty", "Total"];
+        const tableRows = (currentOrder?.items || []).map(item => [
+            item.name || 'Unknown Item',
+            `INR ${(item.price || 0).toLocaleString()}`,
+            item.quantity || 1,
+            `INR ${((item.price || 0) * (item.quantity || 1)).toLocaleString()}`
+        ]);
+
+        doc.autoTable({
+            startY: 85,
+            head: [tableColumn],
+            body: tableRows,
+            theme: 'grid',
+            headStyles: { fillColor: [40, 70, 229], textColor: [255, 255, 255] },
+            alternateRowStyles: { fillColor: [249, 250, 251] }
+        });
+
+        const finalY = doc.previousAutoTable.finalY + 10;
+        doc.setFontSize(14);
+        doc.setTextColor(33);
+        doc.text(`TOTAL AMOUNT: INR ${currentOrder.total_amount.toLocaleString()}`, 190, finalY, { align: 'right' });
+
+        doc.setFontSize(10);
+        doc.setTextColor(150);
+        doc.text('Thank you for choosing TradeLink.', 105, finalY + 30, { align: 'center' });
+
+        doc.save(`Invoice_${String(currentOrder._id || currentOrder.id).slice(-8)}.pdf`);
     };
 
     return (
@@ -90,7 +136,7 @@ const OrdersPage = () => {
                 <Link to="/" style={styles.backLink}>
                     <ArrowLeft size={18} /> Back to Shopping
                 </Link>
-                <div style={styles.orderIdBadge}>Order #{currentOrder._id?.substring(-6)}</div>
+                <div style={styles.orderIdBadge}>Order #{(currentOrder._id || currentOrder.id || '').toString().slice(-6).toUpperCase()}</div>
             </div>
 
             <div style={{ display: 'flex', gap: '20px', overflowX: 'auto', paddingBottom: '20px', marginBottom: '40px' }}>
@@ -112,7 +158,7 @@ const OrdersPage = () => {
                             gap: '4px'
                         }}
                     >
-                        <span style={{ fontWeight: 700, fontSize: '0.9rem' }}>Order #{order._id?.substring(order._id.length - 6).toUpperCase()}</span>
+                        <span style={{ fontWeight: 700, fontSize: '0.9rem' }}>Order #{(order._id || order.id || '').toString().slice(-6).toUpperCase()}</span>
                         <span style={{ fontSize: '0.75rem', color: '#64748B' }}>{new Date(order.created_at || Date.now()).toLocaleDateString()}</span>
                     </button>
                 ))}

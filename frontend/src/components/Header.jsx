@@ -137,7 +137,7 @@ const Header = ({ activeCategory, setActiveCategory }) => {
                                             {user.role?.toUpperCase() === 'VENDOR' && (
                                                 <Link to="/dashboard" style={styles.dropdownItem}>Merchant Dashboard</Link>
                                             )}
-                                            <Link to="/buyer/dashboard" style={styles.dropdownItem}>Order Tracking</Link>
+                                            <Link to="/orders" style={styles.dropdownItem}>Order Tracking</Link>
                                             <Link to="/profile" style={styles.dropdownItem}>Account Settings</Link>
                                             <div style={styles.dropdownDivider}></div>
                                             <button onClick={logout} style={styles.dropdownLogoutBtn}>Secure Sign Out</button>
@@ -235,61 +235,63 @@ const Header = ({ activeCategory, setActiveCategory }) => {
             </nav>
 
             {/* Mobile Drawer Overlay */}
-            {isMobileMenuOpen && (
-                <>
-                    <div style={styles.mobileOverlay} onClick={() => setIsMobileMenuOpen(false)}></div>
-                    <div style={styles.mobileDrawer} className="fade-in">
-                        <div style={styles.drawerHeader}>
-                            <div style={styles.logoText}>
-                                TRADE<span style={{ color: 'var(--brand-secondary)' }}>LINK</span>
+            {
+                isMobileMenuOpen && (
+                    <>
+                        <div style={styles.mobileOverlay} onClick={() => setIsMobileMenuOpen(false)}></div>
+                        <div style={styles.mobileDrawer} className="fade-in">
+                            <div style={styles.drawerHeader}>
+                                <div style={styles.logoText}>
+                                    TRADE<span style={{ color: 'var(--brand-secondary)' }}>LINK</span>
+                                </div>
+                                <button style={styles.closeBtn} onClick={() => setIsMobileMenuOpen(false)}>
+                                    <X size={24} />
+                                </button>
                             </div>
-                            <button style={styles.closeBtn} onClick={() => setIsMobileMenuOpen(false)}>
-                                <X size={24} />
-                            </button>
-                        </div>
 
-                        <div style={styles.drawerContent}>
-                            <div style={styles.drawerSection}>
-                                <div style={styles.drawerSectionTitle}>CATEGORIES</div>
-                                <div style={styles.drawerGrid}>
-                                    {allCategories.map((cat, index) => (
-                                        <button
-                                            key={index}
-                                            onClick={() => {
-                                                if (setActiveCategory) setActiveCategory(cat);
-                                                setIsMobileMenuOpen(false);
-                                                if (location.pathname !== '/') navigate('/');
-                                            }}
-                                            style={{
-                                                ...styles.drawerItem,
-                                                background: activeCategory === cat ? 'rgba(79, 70, 229, 0.1)' : 'transparent',
-                                                color: activeCategory === cat ? 'var(--brand-primary)' : 'var(--text-main)',
-                                                fontWeight: activeCategory === cat ? 700 : 500
-                                            }}
-                                        >
-                                            {cat}
-                                        </button>
-                                    ))}
+                            <div style={styles.drawerContent}>
+                                <div style={styles.drawerSection}>
+                                    <div style={styles.drawerSectionTitle}>CATEGORIES</div>
+                                    <div style={styles.drawerGrid}>
+                                        {allCategories.map((cat, index) => (
+                                            <button
+                                                key={index}
+                                                onClick={() => {
+                                                    if (setActiveCategory) setActiveCategory(cat);
+                                                    setIsMobileMenuOpen(false);
+                                                    if (location.pathname !== '/') navigate('/');
+                                                }}
+                                                style={{
+                                                    ...styles.drawerItem,
+                                                    background: activeCategory === cat ? 'rgba(79, 70, 229, 0.1)' : 'transparent',
+                                                    color: activeCategory === cat ? 'var(--brand-primary)' : 'var(--text-main)',
+                                                    fontWeight: activeCategory === cat ? 700 : 500
+                                                }}
+                                            >
+                                                {cat}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                <div style={styles.drawerSection}>
+                                    <div style={styles.drawerSectionTitle}>ACCOUNT</div>
+                                    {user ? (
+                                        <>
+                                            <Link to="/profile" style={styles.drawerItem} onClick={() => setIsMobileMenuOpen(false)}>My Profile</Link>
+                                            <Link to="/orders" style={styles.drawerItem} onClick={() => setIsMobileMenuOpen(false)}>Orders</Link>
+                                            <button onClick={() => { logout(); setIsMobileMenuOpen(false); }} style={{ ...styles.drawerItem, color: 'var(--brand-danger)' }}>Sign Out</button>
+                                        </>
+                                    ) : (
+                                        <Link to="/login" style={styles.drawerItem} onClick={() => setIsMobileMenuOpen(false)}>Sign In / Register</Link>
+                                    )}
                                 </div>
                             </div>
-
-                            <div style={styles.drawerSection}>
-                                <div style={styles.drawerSectionTitle}>ACCOUNT</div>
-                                {user ? (
-                                    <>
-                                        <Link to="/profile" style={styles.drawerItem} onClick={() => setIsMobileMenuOpen(false)}>My Profile</Link>
-                                        <Link to="/buyer/dashboard" style={styles.drawerItem} onClick={() => setIsMobileMenuOpen(false)}>Orders</Link>
-                                        <button onClick={() => { logout(); setIsMobileMenuOpen(false); }} style={{ ...styles.drawerItem, color: 'var(--brand-danger)' }}>Sign Out</button>
-                                    </>
-                                ) : (
-                                    <Link to="/login" style={styles.drawerItem} onClick={() => setIsMobileMenuOpen(false)}>Sign In / Register</Link>
-                                )}
-                            </div>
                         </div>
-                    </div>
-                </>
-            )}
-        </header>
+                    </>
+                )
+            }
+        </header >
     );
 };
 

@@ -1,12 +1,11 @@
 import { auth } from '../firebase';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
+console.log('API_BASE_URL resolved to:', API_BASE_URL);
 
 // Utility for getting the auth token based on Firebase OR JWT
 const getAuthHeaders = () => {
-    const headers = {
-        'Content-Type': 'application/json',
-    };
+    const headers = {};
 
     // 1. Check if Firebase Google Auth is Active
     const user = auth.currentUser;
@@ -28,12 +27,17 @@ export const api = {
     // ---- AUTHENTICATION ----
 
     login: async (email, password) => {
+        console.log(`[API] Fetching ${API_BASE_URL}/users/login/ ...`);
         const response = await fetch(`${API_BASE_URL}/users/login/`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ email, password })
         });
-        if (!response.ok) throw new Error('Invalid email or password');
+        if (!response.ok) {
+            console.error(`[API] Login failed with status: ${response.status}`);
+            throw new Error('Invalid email or password');
+        }
+        console.log(`[API] Login successful`);
         return response.json();
     },
 
@@ -59,7 +63,7 @@ export const api = {
     updateUserProfile: async (userData) => {
         const response = await fetch(`${API_BASE_URL}/users/profile/`, {
             method: 'PUT',
-            headers: getAuthHeaders(),
+            headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
             body: JSON.stringify(userData)
         });
         if (!response.ok) throw new Error('Failed to update profile');
@@ -69,9 +73,20 @@ export const api = {
     // ---- PRODUCTS ----
     getProducts: async (category = null) => {
         const url = category ? `${API_BASE_URL}/products/?category=${encodeURIComponent(category)}` : `${API_BASE_URL}/products/`;
-        const response = await fetch(url);
-        if (!response.ok) throw new Error('Failed to fetch products');
-        return response.json();
+        console.log(`[API] Fetching products from: ${url}`);
+        try {
+            const response = await fetch(url);
+            if (!response.ok) {
+                console.error(`[API] Fetch products failed with status: ${response.status}`);
+                throw new Error('Failed to fetch products');
+            }
+            const data = await response.json();
+            console.log(`[API] Fetched ${data.length} products`);
+            return data;
+        } catch (error) {
+            console.error(`[API] Network error fetching products:`, error);
+            throw error;
+        }
     },
 
     searchProducts: async (query) => {
@@ -104,7 +119,7 @@ export const api = {
     setupVendorProfile: async (shopData) => {
         const response = await fetch(`${API_BASE_URL}/vendors/setup/`, {
             method: 'POST',
-            headers: getAuthHeaders(),
+            headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
             body: JSON.stringify(shopData)
         });
         if (!response.ok) throw new Error('Failed to create shop profile');
@@ -114,7 +129,7 @@ export const api = {
     addVendorProduct: async (productData) => {
         const response = await fetch(`${API_BASE_URL}/products/add/`, {
             method: 'POST',
-            headers: getAuthHeaders(),
+            headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
             body: JSON.stringify(productData)
         });
         if (!response.ok) {
@@ -127,7 +142,7 @@ export const api = {
     editVendorProduct: async (productId, productData) => {
         const response = await fetch(`${API_BASE_URL}/products/${productId}`, {
             method: 'PUT',
-            headers: getAuthHeaders(),
+            headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
             body: JSON.stringify(productData)
         });
         if (!response.ok) throw new Error('Failed to update product');
@@ -180,7 +195,7 @@ export const api = {
     placeOrder: async (orderData) => {
         const response = await fetch(`${API_BASE_URL}/orders/place/`, {
             method: 'POST',
-            headers: getAuthHeaders(),
+            headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
             body: JSON.stringify(orderData)
         });
         if (!response.ok) {
@@ -205,7 +220,7 @@ export const api = {
     updateOrderStatus: async (orderId, status) => {
         const response = await fetch(`${API_BASE_URL}/orders/${orderId}/status`, {
             method: 'PUT',
-            headers: getAuthHeaders(),
+            headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
             body: JSON.stringify({ status })
         });
         if (!response.ok) throw new Error('Failed to update order status');
@@ -235,7 +250,7 @@ export const api = {
     createAdmin: async (adminData) => {
         const response = await fetch(`${API_BASE_URL}/admin/create-admin/`, {
             method: 'POST',
-            headers: getAuthHeaders(),
+            headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
             body: JSON.stringify(adminData)
         });
         if (!response.ok) throw new Error('Failed to create admin account');
@@ -269,7 +284,7 @@ export const api = {
     updateUserStatus: async (username, status) => {
         const response = await fetch(`${API_BASE_URL}/admin/users/${username}/status`, {
             method: 'PUT',
-            headers: getAuthHeaders(),
+            headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
             body: JSON.stringify({ status })
         });
         if (!response.ok) throw new Error('Failed to update user status');
@@ -279,7 +294,7 @@ export const api = {
     approveVendor: async (username, approved) => {
         const response = await fetch(`${API_BASE_URL}/admin/vendors/${username}/approve`, {
             method: 'PUT',
-            headers: getAuthHeaders(),
+            headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
             body: JSON.stringify({ approved })
         });
         if (!response.ok) throw new Error('Failed to update vendor approval');
@@ -323,7 +338,7 @@ export const api = {
     updatePlatformConfig: async (configData) => {
         const response = await fetch(`${API_BASE_URL}/admin/config/`, {
             method: 'PUT',
-            headers: getAuthHeaders(),
+            headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
             body: JSON.stringify(configData)
         });
         if (!response.ok) throw new Error('Failed to update config');
@@ -340,7 +355,7 @@ export const api = {
     createCategory: async (categoryData) => {
         const response = await fetch(`${API_BASE_URL}/categories/`, {
             method: 'POST',
-            headers: getAuthHeaders(),
+            headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
             body: JSON.stringify(categoryData)
         });
         if (!response.ok) throw new Error('Failed to create category');
@@ -361,7 +376,7 @@ export const api = {
         try {
             const response = await fetch(`${API_BASE_URL}/users/track/`, {
                 method: 'POST',
-                headers: getAuthHeaders(),
+                headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
                 body: JSON.stringify({ type, value })
             });
             if (!response.ok) return null;
@@ -373,27 +388,39 @@ export const api = {
     },
 
     getAIRecommendations: async () => {
+        console.log(`[API] Fetching AI recommendations from: ${API_BASE_URL}/users/recommendations/`);
         try {
             const response = await fetch(`${API_BASE_URL}/users/recommendations/`, {
                 headers: getAuthHeaders()
             });
-            if (!response.ok) return [];
-            return response.json();
+            if (!response.ok) {
+                console.error(`[API] Recommendations failed with status: ${response.status}`);
+                return [];
+            }
+            const data = await response.json();
+            console.log(`[API] Fetched ${data.length} recommendations`);
+            return data;
         } catch (e) {
-            console.error("Recommendation error", e);
+            console.error("[API] Recommendation fetch error", e);
             return [];
         }
     },
 
     getNotifications: async () => {
+        console.log(`[API] Fetching notifications from: ${API_BASE_URL}/users/notifications/`);
         try {
             const response = await fetch(`${API_BASE_URL}/users/notifications/`, {
                 headers: getAuthHeaders()
             });
-            if (!response.ok) return [];
-            return response.json();
+            if (!response.ok) {
+                console.error(`[API] Notifications failed with status: ${response.status}`);
+                return [];
+            }
+            const data = await response.json();
+            console.log(`[API] Fetched ${data.length} notifications`);
+            return data;
         } catch (e) {
-            console.error("Notification error", e);
+            console.error("[API] Notification fetch error", e);
             return [];
         }
     },
@@ -411,6 +438,29 @@ export const api = {
             body: formData
         });
         if (!response.ok) throw new Error('Image upload failed');
+        return response.json();
+    },
+
+    // ---- REVIEWS ----
+    getProductReviews: async (productId) => {
+        const response = await fetch(`${API_BASE_URL}/reviews/product/${productId}`);
+        if (!response.ok) return [];
+        return response.json();
+    },
+
+    getVendorReviews: async (vendorUsername) => {
+        const response = await fetch(`${API_BASE_URL}/reviews/vendor/${vendorUsername}`);
+        if (!response.ok) return [];
+        return response.json();
+    },
+
+    postReview: async (reviewData) => {
+        const response = await fetch(`${API_BASE_URL}/reviews/`, {
+            method: 'POST',
+            headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
+            body: JSON.stringify(reviewData)
+        });
+        if (!response.ok) throw new Error('Failed to submit review');
         return response.json();
     }
 };

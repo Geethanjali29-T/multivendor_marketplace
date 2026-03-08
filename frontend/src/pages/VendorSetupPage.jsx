@@ -90,7 +90,6 @@ const VendorSetupPage = () => {
                 finalShopData.category = customCatVal;
             }
             await api.setupVendorProfile(finalShopData);
-            await api.setupVendorProfile(finalShopData);
             navigate('/dashboard', { state: { activeTab: 'products', openAddModal: true } });
         } catch (err) {
             setApiError(err.message || "Failed to create shop profile.");

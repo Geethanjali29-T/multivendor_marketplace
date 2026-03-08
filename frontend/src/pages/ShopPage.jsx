@@ -4,12 +4,14 @@ import {
     Star, MapPin, Phone, Globe, ArrowLeft, ShoppingBag, ShieldCheck,
     CheckCircle, MessageCircle, Clock, Users, Filter, ArrowDownUp, Package, UserPlus
 } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
 import { api } from '../services/api';
 import LoadingScreen from '../components/LoadingScreen';
 
 const ShopPage = () => {
     const { username } = useParams();
     const navigate = useNavigate();
+    const { user, updateUser } = useAuth();
     const [shop, setShop] = useState(null);
     const [products, setProducts] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -21,18 +23,13 @@ const ShopPage = () => {
     // Tabs
     const [activeTab, setActiveTab] = useState('products');
 
+    const [realReviews, setRealReviews] = useState([]);
+    const [loadingReviews, setLoadingReviews] = useState(true);
     const [mockData, setMockData] = useState({
         followers: Math.floor(randomSeed(username || 'shop') * 5000) + 100,
         ordersDelivered: Math.floor(randomSeed(username || 'shop') * 20000) + 500,
         yearsOnPlatform: Math.floor(randomSeed(username || 'shop') * 5) + 1,
         isFollowing: false,
-        totalReviews: Math.floor(randomSeed(username || 'shop') * 500) + 50,
-        ratingDist: { 5: 180, 4: 40, 3: 20, 2: 5, 1: 5 },
-        reviews: [
-            { id: 1, name: 'Rahul S.', rating: 5, comment: 'Great product and fast delivery!', date: '2 days ago' },
-            { id: 2, name: 'Priya K.', rating: 4, comment: 'Good quality, but shipping took a while.', date: '1 week ago' },
-            { id: 3, name: 'Amit G.', rating: 5, comment: 'Exactly as described. Highly recommended vendor!', date: '2 weeks ago' }
-        ]
     });
 
     // Simple deterministic random for mock data consistency
@@ -57,9 +54,14 @@ const ShopPage = () => {
                     setShop(foundShop);
                     setProducts(shopProducts);
                 }
+
+                // Fetch real reviews
+                const reviewsData = await api.getVendorReviews(username);
+                setRealReviews(reviewsData);
             } catch (error) {
                 console.error("Error fetching shop data:", error);
             } finally {
+                setLoadingReviews(false);
                 setLoading(false);
             }
         };
@@ -90,7 +92,7 @@ const ShopPage = () => {
             } else {
                 newFollowing = currentFollowing.filter(u => u !== username);
             }
-            await api.updateUserProfile({ following_shops: newFollowing });
+            await updateUser({ following_shops: newFollowing });
         } catch (e) {
             console.error("Failed to sync following state", e);
         }
@@ -160,7 +162,7 @@ const ShopPage = () => {
                                 style={mockData.isFollowing ? styles.btnFollowActive : styles.btnFollow}
                                 className="btn"
                             >
-                                {mockData.isFollowing ? 'FOLLOWING' : 'FOLLOW'}
+                                {mockData.isFollowing ? 'COLLECTED' : 'COLLECT SHOP'}
                             </button>
                             <button
                                 style={styles.btnContact}
@@ -262,16 +264,25 @@ const ShopPage = () => {
 
                         {activeTab === 'reviews' && (
                             <div style={styles.reviewsList}>
-                                {mockData.reviews.map(rev => (
-                                    <div key={rev.id} style={styles.reviewCard}>
-                                        <div style={styles.revHead}>
-                                            <div style={styles.revRating}>{rev.rating} ★</div>
-                                            <span style={styles.revUser}>{rev.name}</span>
-                                            <span style={styles.revDate}>{rev.date}</span>
+                                {loadingReviews ? (
+                                    <p>Loading reviews...</p>
+                                ) : realReviews.length > 0 ? (
+                                    realReviews.map(rev => (
+                                        <div key={rev._id} style={styles.reviewCard}>
+                                            <div style={styles.revHead}>
+                                                <div style={styles.revRating}>{rev.rating} ★</div>
+                                                <span style={styles.revUser}>{rev.username || 'Anonymous'}</span>
+                                                <span style={styles.revDate}>{new Date(rev.created_at).toLocaleDateString()}</span>
+                                            </div>
+                                            <p style={styles.revText}>{rev.comment}</p>
                                         </div>
-                                        <p style={styles.revText}>{rev.comment}</p>
+                                    ))
+                                ) : (
+                                    <div style={styles.noReviews}>
+                                        <Users size={48} color="#cbd5e1" />
+                                        <p>No reviews for this shop yet.</p>
                                     </div>
-                                ))}
+                                )}
                             </div>
                         )}
 
@@ -367,7 +378,8 @@ const styles = {
     policyGrid: { padding: '32px', display: 'flex', flexDirection: 'column', gap: '24px' },
     policyCard: {},
 
-    error: { textAlign: 'center', padding: '100px 0', fontSize: '20px', color: '#878787' }
+    error: { textAlign: 'center', padding: '100px 0', fontSize: '20px', color: '#878787' },
+    noReviews: { textAlign: 'center', padding: '40px', color: '#94a3b8', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px' }
 };
 
 export default ShopPage;
