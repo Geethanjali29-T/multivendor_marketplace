@@ -13,7 +13,7 @@ const Header = ({ activeCategory, setActiveCategory }) => {
     const navigate = useNavigate();
     const isBusinessPage = location.pathname === '/';
 
-    const [isMenuOpen, setIsMenuOpen] = useState(false);
+    const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [showAllCategories, setShowAllCategories] = useState(false);
     const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
     const [isNotifOpen, setIsNotifOpen] = useState(false);
@@ -66,12 +66,21 @@ const Header = ({ activeCategory, setActiveCategory }) => {
             {/* Top Bar: Amazon-style utility with Myntra-style precision */}
             <div style={styles.topSection}>
                 <div style={styles.contentContainer}>
+                    {/* Hamburger Menu - Mobile Only */}
+                    <button
+                        style={styles.menuToggle}
+                        className="mobile-only"
+                        onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+                    >
+                        {isMobileMenuOpen ? <X size={24} color="white" /> : <Menu size={24} color="white" />}
+                    </button>
+
                     {/* Brand Logo - Minimalist & Bold */}
-                    <Link to="/" style={styles.logoContainer}>
+                    <Link to="/" style={styles.logoContainer} onClick={() => setIsMobileMenuOpen(false)}>
                         <div style={styles.logoText}>
                             TRADE<span style={{ color: 'var(--brand-secondary)' }}>LINK</span>
                         </div>
-                        <div style={styles.logoTagline}>Premium Marketplace</div>
+                        <div style={styles.logoTagline} className="desktop-only">Premium Marketplace</div>
                     </Link>
 
                     {/* Search Bar - Wide, Functional, Modern Glow */}
@@ -137,7 +146,7 @@ const Header = ({ activeCategory, setActiveCategory }) => {
                                 )}
                             </div>
                         ) : (
-                            <Link to="/login" style={styles.loginCardBtn}>
+                            <Link to="/login" style={styles.loginCardBtn} className="header-icon-btn">
                                 <User size={18} />
                                 <span>Sign In</span>
                             </Link>
@@ -146,7 +155,7 @@ const Header = ({ activeCategory, setActiveCategory }) => {
                         {/* AI Notifications */}
                         {user && (
                             <div style={styles.userGroup} ref={notifRef}>
-                                <div style={styles.actionItem} onClick={() => setIsNotifOpen(!isNotifOpen)}>
+                                <div style={styles.actionItem} onClick={() => setIsNotifOpen(!isNotifOpen)} className="header-icon-btn">
                                     <div style={styles.iconWrapper}>
                                         <Bell size={22} color="white" />
                                         {notifications.length > 0 && <span style={styles.badge}>{notifications.length}</span>}
@@ -201,8 +210,8 @@ const Header = ({ activeCategory, setActiveCategory }) => {
                 </div>
             </div>
 
-            {/* Tier 2: Categories */}
-            <nav style={styles.bottomNav}>
+            {/* Tier 2: Categories - Desktop Only */}
+            <nav style={styles.bottomNav} className="desktop-only">
                 <div style={styles.contentContainer}>
                     <ul style={styles.navLinks}>
                         {allCategories.map((cat, index) => (
@@ -224,6 +233,62 @@ const Header = ({ activeCategory, setActiveCategory }) => {
                     </ul>
                 </div>
             </nav>
+
+            {/* Mobile Drawer Overlay */}
+            {isMobileMenuOpen && (
+                <>
+                    <div style={styles.mobileOverlay} onClick={() => setIsMobileMenuOpen(false)}></div>
+                    <div style={styles.mobileDrawer} className="fade-in">
+                        <div style={styles.drawerHeader}>
+                            <div style={styles.logoText}>
+                                TRADE<span style={{ color: 'var(--brand-secondary)' }}>LINK</span>
+                            </div>
+                            <button style={styles.closeBtn} onClick={() => setIsMobileMenuOpen(false)}>
+                                <X size={24} />
+                            </button>
+                        </div>
+
+                        <div style={styles.drawerContent}>
+                            <div style={styles.drawerSection}>
+                                <div style={styles.drawerSectionTitle}>CATEGORIES</div>
+                                <div style={styles.drawerGrid}>
+                                    {allCategories.map((cat, index) => (
+                                        <button
+                                            key={index}
+                                            onClick={() => {
+                                                if (setActiveCategory) setActiveCategory(cat);
+                                                setIsMobileMenuOpen(false);
+                                                if (location.pathname !== '/') navigate('/');
+                                            }}
+                                            style={{
+                                                ...styles.drawerItem,
+                                                background: activeCategory === cat ? 'rgba(79, 70, 229, 0.1)' : 'transparent',
+                                                color: activeCategory === cat ? 'var(--brand-primary)' : 'var(--text-main)',
+                                                fontWeight: activeCategory === cat ? 700 : 500
+                                            }}
+                                        >
+                                            {cat}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+
+                            <div style={styles.drawerSection}>
+                                <div style={styles.drawerSectionTitle}>ACCOUNT</div>
+                                {user ? (
+                                    <>
+                                        <Link to="/profile" style={styles.drawerItem} onClick={() => setIsMobileMenuOpen(false)}>My Profile</Link>
+                                        <Link to="/buyer/dashboard" style={styles.drawerItem} onClick={() => setIsMobileMenuOpen(false)}>Orders</Link>
+                                        <button onClick={() => { logout(); setIsMobileMenuOpen(false); }} style={{ ...styles.drawerItem, color: 'var(--brand-danger)' }}>Sign Out</button>
+                                    </>
+                                ) : (
+                                    <Link to="/login" style={styles.drawerItem} onClick={() => setIsMobileMenuOpen(false)}>Sign In / Register</Link>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                </>
+            )}
         </header>
     );
 };
@@ -249,6 +314,10 @@ const styles = {
         display: 'flex',
         alignItems: 'center',
         padding: '0 24px',
+        '@media (max-width: 768px)': {
+            padding: '0 12px',
+            justifyContent: 'space-between'
+        }
     },
     logoContainer: {
         display: 'flex',
@@ -511,6 +580,84 @@ const styles = {
         textTransform: 'uppercase',
         letterSpacing: '0.5px',
         transition: 'all 0.2s',
+    },
+    menuToggle: {
+        background: 'transparent',
+        border: 'none',
+        padding: '8px',
+        marginRight: '8px',
+        cursor: 'pointer',
+        display: 'flex',
+        alignItems: 'center'
+    },
+    mobileOverlay: {
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        width: '100vw',
+        height: '100vh',
+        background: 'rgba(0,0,0,0.5)',
+        zIndex: 1001
+    },
+    mobileDrawer: {
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        width: '80%',
+        maxWidth: '300px',
+        height: '100vh',
+        background: 'white',
+        zIndex: 1002,
+        display: 'flex',
+        flexDirection: 'column',
+        boxShadow: '10px 0 15px rgba(0,0,0,0.1)'
+    },
+    drawerHeader: {
+        padding: '20px',
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        borderBottom: '1px solid #eee',
+        background: 'var(--bg-header)'
+    },
+    closeBtn: {
+        background: 'transparent',
+        border: 'none',
+        color: 'white',
+        cursor: 'pointer'
+    },
+    drawerContent: {
+        flex: 1,
+        overflowY: 'auto',
+        padding: '20px'
+    },
+    drawerSection: {
+        marginBottom: '24px'
+    },
+    drawerSectionTitle: {
+        fontSize: '11px',
+        fontWeight: 700,
+        color: '#94a3b8',
+        letterSpacing: '1px',
+        marginBottom: '12px'
+    },
+    drawerGrid: {
+        display: 'grid',
+        gridTemplateColumns: '1fr',
+        gap: '4px'
+    },
+    drawerItem: {
+        display: 'block',
+        width: '100%',
+        textAlign: 'left',
+        padding: '12px 16px',
+        borderRadius: '8px',
+        fontSize: '14px',
+        color: 'var(--text-main)',
+        textDecoration: 'none',
+        border: 'none',
+        cursor: 'pointer',
+        transition: 'all 0.2s'
     }
 };
 

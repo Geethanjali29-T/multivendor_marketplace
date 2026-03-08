@@ -105,8 +105,6 @@ const PartnersPage = ({ activeCategory = 'All', setActiveCategory }) => {
                         id: shop._id || shop.vendor_id || index,
                         name: shop.name || shop.shop_name || 'Vendor Name',
                         username: shop.username,
-                        rating: shop.rating || 4.8,
-                        reviews: Math.floor(Math.random() * 500) + 50,
                         description: shop.description || `${shop.category || 'Retail'} items from ${shop.location || 'Local'}.`,
                         tags: shop.category ? [shop.category.toUpperCase()] : ['PARTNER'],
                         price: mainProduct.price || Math.floor(Math.random() * 500) + 50,
@@ -158,8 +156,8 @@ const PartnersPage = ({ activeCategory = 'All', setActiveCategory }) => {
     return (
         <div className="fade-in" style={styles.pageWrapper}>
             {/* Top Categories Strip - Floating & Interactive */}
-            <div style={styles.categoryStrip}>
-                <div style={styles.contentContainer}>
+            <div style={styles.categoryStrip} className="category-strip-container">
+                <div style={styles.contentContainer} className="category-strip-content">
                     {['Mobiles', 'Fashion', 'Electronics', 'Appliances', 'Beauty', 'Toys', 'Sports', 'Home & Kitchen'].map(cat => (
                         <div key={cat} style={styles.catItem} className="cat-hover" onClick={() => {
                             if (setActiveCategory) setActiveCategory(cat);
@@ -178,15 +176,15 @@ const PartnersPage = ({ activeCategory = 'All', setActiveCategory }) => {
             </div>
 
             {/* Main Content Area - Wide & Breathable */}
-            <div style={styles.mainContent}>
+            <div style={styles.mainContent} className="partners-main-content">
                 {/* Hero Banner Area */}
-                <div style={styles.bannerContainer}>
+                <div style={styles.bannerContainer} className="home-hero-banner">
                     <img
                         src="https://images.unsplash.com/photo-1607082348824-0a96f2a4b9da?ixlib=rb-4.0.3&auto=format&fit=crop&w=1600&q=80"
                         alt="Summer Sale"
                         style={styles.heroBanner}
                     />
-                    <div style={styles.bannerOverlay} className="glass">
+                    <div style={styles.bannerOverlay} className="glass hero-banner-overlay">
                         <div style={styles.bannerText}>SUMMER COLLECTION 2026</div>
                         <div style={styles.bannerSub}>UP TO 70% OFF PREMIUM BRANDS</div>
                         <button style={styles.bannerBtn} className="btn btn-primary">SHOP NOW</button>
@@ -220,18 +218,30 @@ const PartnersPage = ({ activeCategory = 'All', setActiveCategory }) => {
                     </div>
                 )}
 
-                {/* Horizontal Section: Featured Tech */}
+                {/* Vertical Section: Dynamic Title for Search or Category */}
                 <div style={styles.sectionCard} className="card">
                     <div style={styles.sectionHeader}>
                         <div style={styles.sectionTitleBlock}>
-                            <h2 style={styles.sectionTitle}>Precision Electronics</h2>
-                            <p style={styles.sectionSubtitle}>The latest in high-performance technology</p>
+                            <h2 style={styles.sectionTitle}>
+                                {searchQuery ? `Search Results: ${searchQuery}` : `${activeCategory} Collections`}
+                            </h2>
+                            <p style={styles.sectionSubtitle}>
+                                {searchQuery ? `Products matching your query` : `The latest in high-performance products`}
+                            </p>
                         </div>
-                        <button style={styles.viewAllBtn} onClick={() => navigate('/?search=Electronics')}>VIEW COLLECTION</button>
+                        {!searchQuery && (
+                            <button style={styles.viewAllBtn} onClick={() => {
+                                if (activeCategory !== 'All') {
+                                    navigate(`/?search=${activeCategory}`);
+                                } else {
+                                    navigate('/?search=Electronics');
+                                }
+                            }}>VIEW COLLECTION</button>
+                        )}
                     </div>
                     <div style={styles.horizontalScroll}>
-                        {products.filter(p => p.category?.toUpperCase() === 'ELECTRONICS').concat(products).slice(0, 8).map(prod => (
-                            <div key={prod.id} style={styles.productTile} onClick={() => handleOpenModal(prod)}>
+                        {(searchQuery ? filteredProducts : products.filter(p => !activeCategory || activeCategory === 'All' || p.category?.toUpperCase() === activeCategory.toUpperCase())).slice(0, 8).map(prod => (
+                            <div key={prod.id || prod._id} style={styles.productTile} onClick={() => handleOpenModal(prod)}>
                                 <div style={styles.tileImageContainer}>
                                     <img src={prod.image} alt={prod.name} style={styles.tileImage} />
                                 </div>
@@ -265,13 +275,6 @@ const PartnersPage = ({ activeCategory = 'All', setActiveCategory }) => {
                                 </div>
                                 <div style={styles.gridContent}>
                                     <h4 style={styles.gridName}>{product.name}</h4>
-                                    <div style={styles.gridRating}>
-                                        <div style={styles.ratingBox}>
-                                            <span>{product.rating || 4.2}</span>
-                                            <Star size={12} fill="white" color="transparent" />
-                                        </div>
-                                        <span style={styles.reviewCount}>({product.reviews || 0} reviews)</span>
-                                    </div>
                                     <div style={styles.gridPriceRow}>
                                         <span style={styles.currentPrice}>₹{product.price}</span>
                                         <span style={styles.oldPrice}>₹{Math.floor(product.price * 1.4)}</span>

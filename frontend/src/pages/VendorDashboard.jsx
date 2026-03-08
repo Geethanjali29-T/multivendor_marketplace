@@ -46,13 +46,16 @@ const VendorDashboard = () => {
     });
     const [statusMessage, setStatusMessage] = useState({ text: '', type: '' }); // { text: '', type: 'success' | 'error' }
     const [savingShop, setSavingShop] = useState(false);
+    const [showCustomCategory, setShowCustomCategory] = useState(false);
+    const [customCatVal, setCustomCatVal] = useState('');
+    const [uploading, setUploading] = useState({ logo: false, banner: false });
 
     const { user, logout } = useAuth();
     const navigate = useNavigate();
 
     const fetchDashboardData = async () => {
-        if (!user) {
-            setLoading(false);
+        if (!user || user.role !== 'VENDOR') {
+            navigate('/login');
             return;
         }
 
@@ -86,11 +89,32 @@ const VendorDashboard = () => {
         setTimeout(() => setStatusMessage({ text: '', type: '' }), 5000);
     };
 
+    const handleFileUpload = async (e, type) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        setUploading(prev => ({ ...prev, [type]: true }));
+        try {
+            const res = await api.uploadImage(file);
+            const field = type === 'logo' ? 'logo_image' : 'banner_image';
+            setShopData(prev => ({ ...prev, [field]: res.url }));
+            showMessage(`${type === 'logo' ? 'Logo' : 'Banner'} uploaded!`);
+        } catch (err) {
+            showMessage(`Failed to upload ${type}.`, "error");
+        } finally {
+            setUploading(prev => ({ ...prev, [type]: false }));
+        }
+    };
+
     const handleShopUpdate = async (e) => {
         e.preventDefault();
         setSavingShop(true);
         try {
-            await api.setupVendorProfile(shopData);
+            const finalShopData = { ...shopData };
+            if (showCustomCategory && customCatVal) {
+                finalShopData.category = customCatVal;
+            }
+            await api.setupVendorProfile(finalShopData);
             showMessage("Shop settings updated successfully!");
             fetchDashboardData();
         } catch (err) {
@@ -475,13 +499,31 @@ const VendorDashboard = () => {
                         <label style={styles.formLabel}>Business Category</label>
                         <select
                             style={styles.formInput}
-                            value={shopData.category}
-                            onChange={(e) => setShopData({ ...shopData, category: e.target.value })}
+                            value={showCustomCategory ? "CUSTOM" : shopData.category}
+                            onChange={(e) => {
+                                if (e.target.value === "CUSTOM") {
+                                    setShowCustomCategory(true);
+                                } else {
+                                    setShowCustomCategory(false);
+                                    setShopData({ ...shopData, category: e.target.value });
+                                }
+                            }}
                             required
                         >
                             <option value="">Select Category</option>
                             {categories.map(cat => <option key={cat} value={cat}>{cat}</option>)}
+                            <option value="CUSTOM">+ Add New / Custom</option>
                         </select>
+                        {showCustomCategory && (
+                            <input
+                                style={{ ...styles.formInput, marginTop: '8px' }}
+                                type="text"
+                                value={customCatVal}
+                                onChange={(e) => setCustomCatVal(e.target.value)}
+                                placeholder="Enter custom category name..."
+                                autoFocus
+                            />
+                        )}
                     </div>
                     <div className="form-group">
                         <label style={styles.formLabel}>Location / City</label>
@@ -516,23 +558,47 @@ const VendorDashboard = () => {
                         />
                     </div>
                     <div className="form-group">
-                        <label style={styles.formLabel}>Logo Image URL</label>
+                        <label style={styles.formLabel}>Logo Image</label>
+                        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                            <input
+                                type="file"
+                                accept="image/*"
+                                style={{ display: 'none' }}
+                                id="logo-upload"
+                                onChange={(e) => handleFileUpload(e, 'logo')}
+                            />
+                            <label htmlFor="logo-upload" style={{ ...styles.formInput, cursor: 'pointer', textAlign: 'center', background: '#f8fafc', border: '2px dashed var(--vendor-border)', flex: 1 }}>
+                                {uploading.logo ? 'Uploading...' : 'Upload Logo File'}
+                            </label>
+                        </div>
                         <input
-                            style={styles.formInput}
+                            style={{ ...styles.formInput, marginTop: '8px', fontSize: '0.8rem' }}
                             type="text"
                             value={shopData.logo_image}
                             onChange={(e) => setShopData({ ...shopData, logo_image: e.target.value })}
-                            placeholder="https://example.com/logo.png"
+                            placeholder="Or paste Logo URL..."
                         />
                     </div>
                     <div className="form-group">
-                        <label style={styles.formLabel}>Banner Image URL</label>
+                        <label style={styles.formLabel}>Banner Image</label>
+                        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                            <input
+                                type="file"
+                                accept="image/*"
+                                style={{ display: 'none' }}
+                                id="banner-upload"
+                                onChange={(e) => handleFileUpload(e, 'banner')}
+                            />
+                            <label htmlFor="banner-upload" style={{ ...styles.formInput, cursor: 'pointer', textAlign: 'center', background: '#f8fafc', border: '2px dashed var(--vendor-border)', flex: 1 }}>
+                                {uploading.banner ? 'Uploading...' : 'Upload Banner File'}
+                            </label>
+                        </div>
                         <input
-                            style={styles.formInput}
+                            style={{ ...styles.formInput, marginTop: '8px', fontSize: '0.8rem' }}
                             type="text"
                             value={shopData.banner_image}
                             onChange={(e) => setShopData({ ...shopData, banner_image: e.target.value })}
-                            placeholder="https://example.com/banner.jpg"
+                            placeholder="Or paste Banner URL..."
                         />
                     </div>
                     <button

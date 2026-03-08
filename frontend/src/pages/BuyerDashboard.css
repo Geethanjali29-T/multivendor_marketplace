@@ -255,9 +255,56 @@
 @media (max-width: 992px) {
     .buyer-container {
         flex-direction: column;
+        margin: 16px auto;
+        padding: 0 16px;
+        gap: 20px;
     }
 
     .buyer-sidebar {
         width: 100%;
+    }
+
+    .buyer-profile-mini {
+        padding: 16px;
+    }
+}
+
+@media (max-width: 768px) {
+
+    /* Hide sidebar and potentially use tabs in the future */
+    .buyer-sidebar {
+        display: none;
+    }
+
+    .buyer-card {
+        padding: 20px;
+    }
+
+    .buyer-card-title {
+        font-size: 18px;
+        margin-bottom: 20px;
+    }
+
+    .buyer-order-item {
+        flex-direction: column;
+        gap: 16px;
+        padding: 16px;
+    }
+
+    .buyer-order-img {
+        width: 100px;
+        height: 100px;
+    }
+
+    .buyer-status-area {
+        width: 100%;
+        border-top: 1px solid var(--buyer-border);
+        padding-top: 12px;
+    }
+
+    /* Form grid */
+    div[style*="grid-template-columns"] {
+        grid-template-columns: 1fr !important;
+        gap: 16px !important;
     }
 }

@@ -20,10 +20,51 @@ const CheckoutPage = () => {
         return <Navigate to="/cart" />;
     }
 
+    const handleRazorpayPayment = () => {
+        return new Promise((resolve, reject) => {
+            const options = {
+                key: 'rzp_test_YOUR_KEY_HERE', // In a real app, this comes from ENV
+                amount: getCartTotal() * 100, // amount in paise
+                currency: 'INR',
+                name: 'TradeLink Marketplace',
+                description: 'Test Transaction',
+                handler: function (response) {
+                    resolve(response.razorpay_payment_id);
+                },
+                prefill: {
+                    name: user?.username || '',
+                    email: user?.email || '',
+                },
+                theme: {
+                    color: '#2874f0',
+                },
+                modal: {
+                    ondismiss: function () {
+                        reject(new Error('Payment cancelled by user'));
+                    }
+                }
+            };
+            const rzp = new window.Razorpay(options);
+            rzp.open();
+        });
+    };
+
     const handlePlaceOrder = async () => {
         setIsProcessing(true);
         setError('');
         try {
+            let paymentId = 'COD';
+
+            if (paymentMethod !== 'COD') {
+                try {
+                    paymentId = await handleRazorpayPayment();
+                } catch (payErr) {
+                    setError(payErr.message);
+                    setIsProcessing(false);
+                    return;
+                }
+            }
+
             const orderData = {
                 items: cartItems.map(item => ({
                     product_id: item.id || item._id,
@@ -35,7 +76,8 @@ const CheckoutPage = () => {
                 total_amount: getCartTotal(),
                 shipping_address: address,
                 payment_method: paymentMethod,
-                payment_status: paymentMethod === 'COD' ? 'PENDING' : 'PAID'
+                payment_status: paymentMethod === 'COD' ? 'PENDING' : 'PAID',
+                razorpay_payment_id: paymentId
             };
 
             const result = await api.placeOrder(orderData);
@@ -56,8 +98,8 @@ const CheckoutPage = () => {
     const cartTotal = getCartTotal();
 
     return (
-        <div style={styles.pageBg}>
-            <div style={styles.container}>
+        <div style={styles.pageBg} className="checkout-page-wrapper">
+            <div style={styles.container} className="checkout-container">
                 {step < 4 && (
                     <div style={styles.header}>
                         <button onClick={() => step > 1 ? setStep(step - 1) : navigate('/cart')} style={styles.backBtn}>
@@ -68,7 +110,7 @@ const CheckoutPage = () => {
                 )}
 
                 {step < 4 && (
-                    <div style={styles.progressRow}>
+                    <div style={styles.progressRow} className="checkout-progress-row">
                         <div style={step >= 1 ? styles.stepActive : styles.step}>1. Address</div>
                         <div style={styles.stepDivider} />
                         <div style={step >= 2 ? styles.stepActive : styles.step}>2. Payment</div>
@@ -77,8 +119,8 @@ const CheckoutPage = () => {
                     </div>
                 )}
 
-                <div style={styles.contentGrid}>
-                    <div style={styles.mainCol}>
+                <div style={styles.contentGrid} className="checkout-content-grid">
+                    <div style={styles.mainCol} className="checkout-main-col">
                         {step === 1 && (
                             <div className="fade-in" style={styles.card}>
                                 <h2 style={styles.sectionTitle}><MapPin size={20} /> Delivery Address</h2>
@@ -181,7 +223,7 @@ const CheckoutPage = () => {
                     </div>
 
                     {step < 4 && (
-                        <div style={styles.sideCol}>
+                        <div style={styles.sideCol} className="checkout-side-col">
                             <div style={styles.priceCard}>
                                 <h3 style={styles.priceHeading}>PRICE DETAILS</h3>
                                 <div style={styles.priceBody}>

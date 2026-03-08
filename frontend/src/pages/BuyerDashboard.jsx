@@ -47,16 +47,22 @@ const BuyerDashboard = () => {
         }
     };
 
-    const addToWishlist = (product) => {
-        const newWish = [...wishlist, product];
+    const addToWishlist = async (product) => {
+        const itemToAdd = {
+            id: product._id || product.id,
+            name: product.name,
+            price: product.price,
+            image: product.image
+        };
+        const newWish = [...wishlist, itemToAdd];
         setWishlist(newWish);
-        saveProfileUpdates({ wishlist: newWish });
+        await saveProfileUpdates({ wishlist: newWish });
     };
 
-    const removeFromWishlist = (productId) => {
-        const newWish = wishlist.filter(item => item.id !== productId);
+    const removeFromWishlist = async (productId) => {
+        const newWish = wishlist.filter(item => (item.id || item._id) !== productId);
         setWishlist(newWish);
-        saveProfileUpdates({ wishlist: newWish });
+        await saveProfileUpdates({ wishlist: newWish });
     };
 
     const addAddress = (newAddr) => {
@@ -121,7 +127,7 @@ const BuyerDashboard = () => {
                     </div>
                     <div className="buyer-menu-items">
                         <button className={`buyer-menu-item ${activeTab === 'wishlist' ? 'active' : ''}`} onClick={() => setActiveTab('wishlist')}>Saved Items</button>
-                        <button className="buyer-menu-item">My Collections</button>
+                        <button className="buyer-menu-item">Followed Shops</button>
                     </div>
                 </div>
 
@@ -143,7 +149,7 @@ const BuyerDashboard = () => {
                 <div className="buyer-empty">
                     <Package size={64} color="#CBD5E1" strokeWidth={1} />
                     <p style={{ fontFamily: 'var(--font-heading)', fontSize: '18px', fontWeight: 600 }}>No active orders found</p>
-                    <Link to="/" className="buyer-btn-primary">DISCOVER COLLECTIONS</Link>
+                    <Link to="/" className="buyer-btn-primary">DISCOVER SHOPS</Link>
                 </div>
             ) : (
                 <div className="buyer-order-list">
@@ -181,7 +187,7 @@ const BuyerDashboard = () => {
             <h3 className="buyer-card-title">Curated Favorites ({wishlist.length})</h3>
             <div className="buyer-order-list">
                 {wishlist.map(item => (
-                    <div key={item.id} className="buyer-order-item card">
+                    <div key={item._id || item.id} className="buyer-order-item card">
                         <div style={{ backgroundColor: '#f8fafc', padding: '8px', borderRadius: 'var(--radius-sm)' }}>
                             <img src={item.image} alt={item.name} className="buyer-order-img" style={{ borderRadius: '8px' }} />
                         </div>
@@ -192,7 +198,7 @@ const BuyerDashboard = () => {
                         <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
                             <button className="buyer-btn-primary" style={{ padding: '10px 24px', fontSize: '12px' }}>ADD TO CART</button>
                             <button
-                                onClick={() => removeFromWishlist(item.id)}
+                                onClick={() => removeFromWishlist(item._id || item.id)}
                                 style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                                 title="Remove from wishlist"
                             >

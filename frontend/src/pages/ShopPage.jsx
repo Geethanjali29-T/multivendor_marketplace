@@ -73,12 +73,27 @@ const ShopPage = () => {
         navigate('/product', { state: { product } });
     };
 
-    const toggleFollow = () => {
+    const toggleFollow = async () => {
+        const newFollowingState = !mockData.isFollowing;
         setMockData(prev => ({
             ...prev,
-            isFollowing: !prev.isFollowing,
-            followers: prev.isFollowing ? prev.followers - 1 : prev.followers + 1
+            isFollowing: newFollowingState,
+            followers: newFollowingState ? prev.followers + 1 : prev.followers - 1
         }));
+
+        // Sync with API/User Profile if authenticated
+        try {
+            const currentFollowing = user?.following_shops || [];
+            let newFollowing;
+            if (newFollowingState) {
+                newFollowing = [...currentFollowing, username];
+            } else {
+                newFollowing = currentFollowing.filter(u => u !== username);
+            }
+            await api.updateUserProfile({ following_shops: newFollowing });
+        } catch (e) {
+            console.error("Failed to sync following state", e);
+        }
     };
 
     const categories = ['All', ...new Set(products.map(p => p.category).filter(Boolean))];
@@ -97,13 +112,13 @@ const ShopPage = () => {
     }
 
     return (
-        <div style={styles.pageBg}>
-            <div style={styles.container}>
+        <div style={styles.pageBg} className="shop-page-wrapper">
+            <div style={styles.container} className="shop-container">
                 {/* 1. Shop Header - Premium Boutique Feel */}
-                <div style={styles.headerCard} className="card">
-                    <div style={{ ...styles.banner, backgroundImage: `url(${shop.banner_image || shop.bannerUrl || 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?auto=format&fit=crop&w=1200&q=80'})` }}>
+                <div style={styles.headerCard} className="card shop-header-card">
+                    <div style={{ ...styles.banner, backgroundImage: `url(${shop.banner_image || shop.bannerUrl || 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?auto=format&fit=crop&w=1200&q=80'})` }} className="shop-banner">
                         <div style={styles.overlay} className="glass-dark" />
-                        <div style={styles.bannerInfo}>
+                        <div style={styles.bannerInfo} className="shop-banner-info">
                             <img
                                 src={shop.logo_image || shop.logoUrl || 'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=facearea&facepad=2&w=128&h=128&q=60'}
                                 alt={shop.shop_name || shop.name}
@@ -119,7 +134,7 @@ const ShopPage = () => {
                                         <span>{shop.rating || 4.6}</span>
                                         <Star size={12} fill="white" stroke="white" />
                                     </div>
-                                    <span style={styles.followerCount}>{mockData.followers.toLocaleString()} Collectors</span>
+                                    <span style={styles.followerCount}>{mockData.followers.toLocaleString()} Followers</span>
                                     <div style={styles.metaDivider} />
                                     <span style={styles.metaText}>{shop.location || 'Premium Boutique'}</span>
                                 </div>
@@ -127,7 +142,7 @@ const ShopPage = () => {
                         </div>
                     </div>
 
-                    <div style={styles.headerFooter}>
+                    <div style={styles.headerFooter} className="shop-header-footer">
                         <div style={styles.statsStrip}>
                             <div style={styles.statBox}>
                                 <div style={styles.statVal}>{mockData.ordersDelivered.toLocaleString()}+</div>
@@ -145,9 +160,18 @@ const ShopPage = () => {
                                 style={mockData.isFollowing ? styles.btnFollowActive : styles.btnFollow}
                                 className="btn"
                             >
-                                {mockData.isFollowing ? 'COLLECTING' : 'COLLECT SHOP'}
+                                {mockData.isFollowing ? 'FOLLOWING' : 'FOLLOW'}
                             </button>
-                            <button style={styles.btnContact} className="btn btn-ghost">
+                            <button
+                                style={styles.btnContact}
+                                className="btn btn-ghost"
+                                onClick={() => {
+                                    // Trigger Chatbot via global event or state
+                                    window.dispatchEvent(new CustomEvent('openChatbot', {
+                                        detail: { message: `Hi, I'm interested in products from ${shop.shop_name || shop.name}.` }
+                                    }));
+                                }}
+                            >
                                 <MessageCircle size={18} /> INQUIRE
                             </button>
                         </div>
@@ -155,9 +179,9 @@ const ShopPage = () => {
                 </div>
 
                 {/* 2. Tabs and Stats */}
-                <div style={styles.mainLayout}>
+                <div style={styles.mainLayout} className="shop-main-layout">
                     {/* Left Sidebar: Filters & Stats */}
-                    <div style={styles.sidebar}>
+                    <div style={styles.sidebar} className="shop-sidebar">
                         <div style={styles.sidebarCard}>
                             <h3 style={styles.sidebarTitle}>About</h3>
                             <p style={styles.aboutText}>{shop.description || 'Welcome to our official store.'}</p>
@@ -190,7 +214,7 @@ const ShopPage = () => {
                     </div>
 
                     {/* Right Content Area */}
-                    <div style={styles.contentArea}>
+                    <div style={styles.contentArea} className="shop-content-area">
                         {/* Tab Nav */}
                         <div style={styles.tabNav}>
                             <button onClick={() => setActiveTab('products')} style={activeTab === 'products' ? styles.tabBtnActive : styles.tabBtn}>ALL PRODUCTS</button>
@@ -267,7 +291,7 @@ const ShopPage = () => {
                 </div>
             </div>
 
-        </div>
+        </div >
     );
 };
 

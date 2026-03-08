@@ -38,7 +38,13 @@ const ProductModal = ({ isOpen, onClose, product, partner }) => {
     const image = item.image || item.bannerImage || 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=800';
     const vendorName = item.vendor_name || item.name || 'Official Store';
 
+    const isOwnProduct = user && product && user.username === product.vendor_username;
+
     const handleAddToCart = (shouldNavigate = false) => {
+        if (isOwnProduct) {
+            setCartMsg('Vendors cannot purchase their own products.');
+            return;
+        }
         addToCart({
             id: item.id || item._id,
             name: productName,
@@ -84,30 +90,56 @@ const ProductModal = ({ isOpen, onClose, product, partner }) => {
     };
 
     return (
-        <div style={styles.overlay} onClick={(e) => e.target === e.currentTarget && onClose()}>
-            <div style={styles.modal}>
-                <button style={styles.closeBtn} onClick={onClose}><X size={20} /></button>
+        <div style={styles.overlay} onClick={(e) => e.target === e.currentTarget && onClose()} className="modal-overlay">
+            <div style={styles.modal} className="product-modal-box">
+                <button style={styles.closeBtn} onClick={onClose} className="product-modal-close"><X size={20} /></button>
 
-                <div style={styles.container}>
+                <div style={styles.container} className="product-modal-container">
                     {/* Left Side: Images & Actions */}
-                    <div style={styles.leftCol}>
-                        <div style={styles.imageBox}>
+                    <div style={styles.leftCol} className="product-modal-left">
+                        <div style={styles.imageBox} className="product-modal-image-box">
                             <img src={image} alt={productName} style={styles.mainImg} />
                         </div>
-                        <div style={styles.actionRow}>
-                            <button style={styles.cartBtn} onClick={handleAddToCart}>
+                        <div style={styles.actionRow} className="product-modal-actions">
+                            <button
+                                style={{ ...styles.cartBtn, opacity: isOwnProduct ? 0.5 : 1, cursor: isOwnProduct ? 'not-allowed' : 'pointer' }}
+                                onClick={handleAddToCart}
+                                disabled={isOwnProduct}
+                            >
                                 <ShoppingCart size={18} /> ADD TO CART
                             </button>
-                            <button style={styles.buyBtn} onClick={() => handleAddToCart(true)}>
+                            <button
+                                style={{ ...styles.buyBtn, opacity: isOwnProduct ? 0.5 : 1, cursor: isOwnProduct ? 'not-allowed' : 'pointer' }}
+                                onClick={() => handleAddToCart(true)}
+                                disabled={isOwnProduct}
+                            >
                                 <Zap size={18} /> BUY NOW
                             </button>
                         </div>
+                        {isOwnProduct && (
+                            <div style={{ marginTop: '12px', padding: '10px 14px', backgroundColor: '#fff7ed', color: '#9a3412', borderRadius: '4px', fontSize: '13px', fontWeight: 600, border: '1px solid #ffedd5' }}>
+                                <Info size={16} /> You cannot buy your own products.
+                            </div>
+                        )}
                         <button style={styles.wishBtn} onClick={handleWishlist}>
                             <Heart size={18} fill={(user?.wishlist?.find(i => (i.id || i._id) === (item.id || item._id))) ? "#ff4343" : "none"} color="#ff4343" />
                             SAVE FOR LATER
                         </button>
                         {cartMsg && (
-                            <div style={{ marginTop: '8px', padding: '10px 14px', backgroundColor: '#ecfdf5', color: '#065f46', borderRadius: '4px', fontSize: '13px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px' }}>✓ {cartMsg}</div>
+                            <div style={{
+                                marginTop: '8px',
+                                padding: '10px 14px',
+                                backgroundColor: cartMsg.includes('cannot') ? '#fff7ed' : '#ecfdf5',
+                                color: cartMsg.includes('cannot') ? '#9a3412' : '#065f46',
+                                borderRadius: '4px',
+                                fontSize: '13px',
+                                fontWeight: 600,
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '6px'
+                            }}>
+                                {cartMsg.includes('cannot') ? '⚠' : '✓'} {cartMsg}
+                            </div>
                         )}
                         {wishMsg && (
                             <div style={{ marginTop: '8px', padding: '10px 14px', backgroundColor: '#eff6ff', color: '#1e40af', borderRadius: '4px', fontSize: '13px', fontWeight: 600 }}>{wishMsg}</div>
@@ -115,7 +147,7 @@ const ProductModal = ({ isOpen, onClose, product, partner }) => {
                     </div>
 
                     {/* Right Side: Details & Reviews */}
-                    <div style={styles.rightCol}>
+                    <div style={styles.rightCol} className="product-modal-right">
                         <div style={styles.breadcrumb}>Home &gt; {item.category || 'Product'} &gt; {productName}</div>
 
                         <h1 style={styles.title}>{productName}</h1>
