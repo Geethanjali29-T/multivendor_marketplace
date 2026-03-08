@@ -11,6 +11,7 @@ const ProductFormModal = ({ isOpen, onClose, onSave, product = null, categories 
         image: '',
         variants: []
     });
+    const [uploading, setUploading] = useState(false);
 
     useEffect(() => {
         if (product) {
@@ -35,6 +36,21 @@ const ProductFormModal = ({ isOpen, onClose, onSave, product = null, categories 
             });
         }
     }, [product, isOpen, categories]);
+
+    const handleFileChange = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        setUploading(true);
+        try {
+            const res = await api.uploadImage(file);
+            setFormData({ ...formData, image: res.url });
+        } catch (err) {
+            alert("Failed to upload image. Please try again.");
+        } finally {
+            setUploading(false);
+        }
+    };
 
     const handleSubmit = (e) => {
         e.preventDefault();
@@ -125,16 +141,43 @@ const ProductFormModal = ({ isOpen, onClose, onSave, product = null, categories 
                         </div>
 
                         <div style={styles.fieldGroup}>
-                            <label style={styles.label}>Product Photo URL</label>
-                            <div style={styles.inputWrapper}>
-                                <Upload size={18} style={styles.inputIcon} />
-                                <input
-                                    type="text"
-                                    style={styles.input}
-                                    value={formData.image}
-                                    onChange={(e) => setFormData({ ...formData, image: e.target.value })}
-                                    placeholder="https://images.unsplash.com/..."
-                                />
+                            <label style={styles.label}>Product Photo</label>
+                            <div style={{ display: 'flex', gap: '12px', flexDirection: 'column' }}>
+                                <div style={styles.inputWrapper}>
+                                    <input
+                                        type="file"
+                                        accept="image/*"
+                                        style={{ display: 'none' }}
+                                        id="product-image-upload"
+                                        onChange={handleFileChange}
+                                        disabled={uploading}
+                                    />
+                                    <label
+                                        htmlFor="product-image-upload"
+                                        style={{
+                                            ...styles.uploadBtn,
+                                            opacity: uploading ? 0.6 : 1,
+                                            cursor: uploading ? 'not-allowed' : 'pointer'
+                                        }}
+                                    >
+                                        <Upload size={18} /> {uploading ? 'Uploading...' : 'Upload Image File'}
+                                    </label>
+                                </div>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                    <div style={{ flex: 1, height: '1px', backgroundColor: '#e2e8f0' }}></div>
+                                    <span style={{ fontSize: '12px', color: '#94a3b8', fontWeight: 600 }}>OR PASTE URL</span>
+                                    <div style={{ flex: 1, height: '1px', backgroundColor: '#e2e8f0' }}></div>
+                                </div>
+                                <div style={styles.inputWrapper}>
+                                    <Info size={18} style={styles.inputIcon} />
+                                    <input
+                                        type="text"
+                                        style={styles.input}
+                                        value={formData.image}
+                                        onChange={(e) => setFormData({ ...formData, image: e.target.value })}
+                                        placeholder="https://images.unsplash.com/..."
+                                    />
+                                </div>
                             </div>
                             {formData.image && (
                                 <div style={styles.previewContainer}>
@@ -309,6 +352,21 @@ const styles = {
         fontSize: '13px',
         boxShadow: 'var(--shadow-md)',
         transition: 'all 0.3s ease'
+    },
+    uploadBtn: {
+        width: '100%',
+        padding: '14px',
+        borderRadius: '14px',
+        border: '2px dashed #cbd5e1',
+        background: '#f8fafc',
+        color: 'var(--brand-secondary)',
+        fontWeight: 700,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: '10px',
+        fontSize: '14px',
+        transition: 'all 0.2s'
     }
 };
 

@@ -144,13 +144,24 @@ const ProductDetailsPage = () => {
 
                         {/* Action Buttons */}
                         <div style={s.actionRow}>
-                            <button style={s.cartBtn} onClick={handleAddToCart}>
+                            <button
+                                style={(user && user.username === product.vendor_username) ? s.disabledBtn : s.cartBtn}
+                                onClick={handleAddToCart}
+                                disabled={user && user.username === product.vendor_username}
+                            >
                                 <ShoppingCart size={20} /> ADD TO CART
                             </button>
-                            <button style={s.buyBtn} onClick={handleBuyNow}>
+                            <button
+                                style={(user && user.username === product.vendor_username) ? s.disabledBtn : s.buyBtn}
+                                onClick={handleBuyNow}
+                                disabled={user && user.username === product.vendor_username}
+                            >
                                 <Zap size={20} /> BUY NOW
                             </button>
                         </div>
+                        {user && user.username === product.vendor_username && (
+                            <div style={s.infoMsg}>Vendors cannot purchase their own products.</div>
+                        )}
                         <button style={s.wishBtn} onClick={handleWishlist}>
                             <Heart size={16} color="#e11d48" />
                             Save to Wishlist
@@ -171,13 +182,6 @@ const ProductDetailsPage = () => {
                     <div style={s.detailCol}>
                         <div style={s.categoryTag}>{category}</div>
                         <h1 style={s.productTitle}>{name}</h1>
-
-                        <div style={s.ratingRow}>
-                            {[1, 2, 3, 4, 5].map(i => (
-                                <Star key={i} size={16} fill={i <= 4 ? '#f59e0b' : 'none'} color="#f59e0b" />
-                            ))}
-                            <span style={s.ratingText}>4.2 · <span style={s.reviewCount}>428 ratings</span></span>
-                        </div>
 
                         <div style={s.divider} />
 
@@ -241,23 +245,6 @@ const ProductDetailsPage = () => {
                     </div>
                 </div>
 
-                {/* Reviews Section */}
-                <div style={s.reviewsSection}>
-                    <h2 style={s.sectionTitle}>Ratings & Reviews</h2>
-                    <div style={s.reviewGrid}>
-                        {reviews.map(rev => (
-                            <div key={rev.id} style={s.reviewCard}>
-                                <div style={s.revTop}>
-                                    <div style={s.revRatingBadge}>{rev.rating} ★</div>
-                                    <span style={s.revUser}>{rev.user}</span>
-                                    {rev.verified && <span style={s.verifiedBadge}>✓ Verified</span>}
-                                    <span style={s.revDate}>{rev.date}</span>
-                                </div>
-                                <p style={s.revComment}>{rev.comment}</p>
-                            </div>
-                        ))}
-                    </div>
-                </div>
 
                 {/* Related Products */}
                 {!loadingRelated && relatedProducts.length > 0 && (
@@ -357,7 +344,8 @@ const s = {
     relatedImg: { width: '64px', height: '64px', objectFit: 'contain', border: '1px solid #f0f0f0', borderRadius: '4px' },
     relatedInfo: { flex: 1 },
     relatedName: { fontSize: '14px', fontWeight: 500, color: '#212121', marginBottom: '4px' },
-    relatedPrice: { fontSize: '14px', fontWeight: 700, color: '#212121' }
+    relatedPrice: { fontSize: '14px', fontWeight: 700, color: '#212121' },
+    disabledBtn: { flex: 1, backgroundColor: '#ccc', color: '#666', border: 'none', padding: '14px', fontSize: '14px', fontWeight: 800, borderRadius: '2px', cursor: 'not-allowed', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }
 };
 
 export default ProductDetailsPage;

@@ -31,6 +31,7 @@ const VendorSetupPage = () => {
     const [customCatVal, setCustomCatVal] = useState('');
 
     const [loading, setLoading] = useState(false);
+    const [uploading, setUploading] = useState({ logo: false, banner: false });
     const [apiError, setApiError] = useState(null);
 
     // --- Validation Logic ---
@@ -54,6 +55,21 @@ const VendorSetupPage = () => {
         if (shopData.bannerUrl && !/^https?:\/\/.*/.test(shopData.bannerUrl)) newErrors.bannerUrl = "Invalid URL format";
         setErrors(newErrors);
         return Object.keys(newErrors).length === 0;
+    };
+
+    const handleFileUpload = async (e, type) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        setUploading(prev => ({ ...prev, [type]: true }));
+        try {
+            const res = await api.uploadImage(file);
+            setShopData(prev => ({ ...prev, [type === 'logo' ? 'logoUrl' : 'bannerUrl']: res.url }));
+        } catch (err) {
+            setApiError(`Failed to upload ${type}.`);
+        } finally {
+            setUploading(prev => ({ ...prev, [type]: false }));
+        }
     };
 
     const handleNextStep = (e) => {
@@ -199,32 +215,50 @@ const VendorSetupPage = () => {
                                     <label style={styles.label}>Shop Logo</label>
                                     <div style={styles.imageDropzone}>
                                         <input
+                                            type="file"
+                                            accept="image/*"
+                                            style={styles.urlInput}
+                                            onChange={(e) => handleFileUpload(e, 'logo')}
+                                        />
+                                        <div style={styles.dropzoneHint}>
+                                            {uploading.logo ? <RefreshCcw className="spin" size={20} /> : <Plus size={20} />}
+                                            <span>{uploading.logo ? 'Uploading...' : 'Upload Logo File'}</span>
+                                        </div>
+                                    </div>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '8px' }}>
+                                        <span style={{ fontSize: '11px', color: '#94a3b8' }}>OR URL</span>
+                                        <input
                                             type="url"
                                             value={shopData.logoUrl}
                                             onChange={e => setShopData({ ...shopData, logoUrl: e.target.value })}
-                                            placeholder="Paste Image URL..."
-                                            style={styles.urlInput}
+                                            placeholder="Paste URL..."
+                                            style={styles.smallUrlInput}
                                         />
-                                        <div style={styles.dropzoneHint}>
-                                            <Plus size={20} />
-                                            <span>Image URL</span>
-                                        </div>
                                     </div>
                                 </div>
                                 <div style={styles.uploadCard}>
                                     <label style={styles.label}>Shop Banner</label>
                                     <div style={styles.imageDropzone}>
                                         <input
+                                            type="file"
+                                            accept="image/*"
+                                            style={styles.urlInput}
+                                            onChange={(e) => handleFileUpload(e, 'banner')}
+                                        />
+                                        <div style={styles.dropzoneHint}>
+                                            {uploading.banner ? <RefreshCcw className="spin" size={20} /> : <Plus size={20} />}
+                                            <span>{uploading.banner ? 'Uploading...' : 'Upload Banner File'}</span>
+                                        </div>
+                                    </div>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '8px' }}>
+                                        <span style={{ fontSize: '11px', color: '#94a3b8' }}>OR URL</span>
+                                        <input
                                             type="url"
                                             value={shopData.bannerUrl}
                                             onChange={e => setShopData({ ...shopData, bannerUrl: e.target.value })}
-                                            placeholder="Paste Banner URL..."
-                                            style={styles.urlInput}
+                                            placeholder="Paste URL..."
+                                            style={styles.smallUrlInput}
                                         />
-                                        <div style={styles.dropzoneHint}>
-                                            <Plus size={20} />
-                                            <span>Main Banner URL</span>
-                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -280,7 +314,7 @@ const VendorSetupPage = () => {
 };
 
 // ... Trash2 icon needs to be imported or removed, let's just use the 'X' text or import Trash2
-import { Trash2 } from 'lucide-react';
+import { Trash2, RefreshCcw } from 'lucide-react';
 
 const styles = {
     container: { padding: '32px', maxWidth: '800px', margin: '0 auto', minHeight: '80vh', display: 'flex', alignItems: 'center' },
@@ -319,7 +353,8 @@ const styles = {
     uploadCard: { display: 'flex', flexDirection: 'column', gap: '8px' },
     imageDropzone: { height: '100px', border: '2px dashed #e2e8f0', borderRadius: '12px', backgroundColor: '#f8fafc', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', position: 'relative', overflow: 'hidden' },
     urlInput: { position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', opacity: 0, cursor: 'pointer', zIndex: 2 },
-    dropzoneHint: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', color: '#94a3b8', fontSize: '0.8rem', fontWeight: 600 }
+    dropzoneHint: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', color: '#94a3b8', fontSize: '0.8rem', fontWeight: 600 },
+    smallUrlInput: { flex: 1, padding: '6px 10px', borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '0.75rem', outline: 'none' }
 };
 
 export default VendorSetupPage;

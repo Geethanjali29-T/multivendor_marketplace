@@ -27,7 +27,7 @@ export const AuthProvider = ({ children }) => {
                         uid: firebaseUser.uid,
                         email: firebaseUser.email,
                         username: firebaseUser.displayName || profileData.username || 'User',
-                        role: profileData.role || 'buyer',
+                        role: profileData.role || 'BUYER',
                         isGoogleAuth: true
                     });
                 } catch (error) {
@@ -36,7 +36,7 @@ export const AuthProvider = ({ children }) => {
                         uid: firebaseUser.uid,
                         email: firebaseUser.email,
                         username: firebaseUser.displayName || 'User',
-                        role: 'buyer',
+                        role: 'BUYER',
                         isGoogleAuth: true
                     });
                 }

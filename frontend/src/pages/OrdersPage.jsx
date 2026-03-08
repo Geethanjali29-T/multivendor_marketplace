@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import { Package, Truck, CheckCircle, Clock, Star, ArrowLeft, ExternalLink, ShieldCheck } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
+import { Package, Truck, CheckCircle, Clock, ChevronRight, ArrowLeft, MapPin, Star, ShoppingBag, ExternalLink, ShieldCheck } from 'lucide-react';
+import { api } from '../services/api';
 
 const OrdersPage = () => {
     const [orders, setOrders] = useState([]);
@@ -61,6 +61,28 @@ const OrdersPage = () => {
 
     const currentOrder = orders.find(o => o._id === selectedOrderId) || orders[0];
     const orderStatus = getStatusStep(currentOrder.status);
+
+    const handleDownloadInvoice = () => {
+        const invoiceContent = `
+            INVOICE - TRADELINK MARKETPLACE
+            Order ID: ${currentOrder._id}
+            Date: ${new Date(currentOrder.created_at).toLocaleDateString()}
+            Customer: ${currentOrder.buyer_username}
+            Total Amount: ₹${currentOrder.total_amount}
+            
+            Items:
+            ${currentOrder.items?.map(i => `- ${i.name} (x${i.quantity}): ₹${i.price}`).join('\n')}
+            
+            Thank you for shopping with us!
+        `;
+        const blob = new Blob([invoiceContent], { type: 'text/plain' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `Invoice_${currentOrder._id.substring(0, 8)}.txt`;
+        link.click();
+        URL.revokeObjectURL(url);
+    };
 
     return (
         <div className="fade-in" style={styles.container}>
@@ -189,11 +211,11 @@ const OrdersPage = () => {
                             <span style={{ fontWeight: 800 }}>Total Paid</span>
                             <span style={{ fontSize: '1.25rem', fontWeight: 800 }}>₹{currentOrder.total_amount}</span>
                         </div>
-                        <div style={styles.paymentMethod}>
+                        <div style={{ ...styles.paymentMethod, cursor: 'pointer' }} onClick={() => alert(`Payment via ${currentOrder.payment_method || 'COD'}. Transaction ID: ${currentOrder.razorpay_payment_id || 'N/A'}`)}>
                             <ShieldCheck size={16} color="#16a34a" />
                             <span>Payment Method: {currentOrder.payment_method || 'COD'}</span>
                         </div>
-                        <button style={styles.invoiceBtn}>
+                        <button style={styles.invoiceBtn} onClick={handleDownloadInvoice}>
                             <ExternalLink size={16} /> Download Invoice
                         </button>
                     </div>

@@ -22,10 +22,6 @@ const VendorCard = ({ partner }) => {
             <div style={styles.content}>
                 <div style={styles.headerRow}>
                     <h4 style={styles.name}>{partner.name}</h4>
-                    <div style={styles.ratingBadge}>
-                        <span>{partner.rating}</span>
-                        <Star size={10} fill="white" stroke="white" />
-                    </div>
                 </div>
                 <p style={styles.description}>{partner.description}</p>
                 <div style={styles.footerRow}>

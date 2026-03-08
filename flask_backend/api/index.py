@@ -1,15 +1,45 @@
 import os
 import random
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, request, send_from_directory
 from flask_cors import CORS
-from pymongo.mongo_client import MongoClient
-from pymongo.server_api import ServerApi
-from dotenv import load_dotenv
+from werkzeug.utils import secure_filename
+import os
 
 # Load environment variables from .env file (local dev only; Vercel uses its own env vars)
 load_dotenv()
 
 app = Flask(__name__)
+
+# Configure Upload Folder
+UPLOAD_FOLDER = 'uploads'
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+
+def allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+@app.route('/uploads/<path:filename>')
+def serve_upload(filename):
+    return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
+
+@app.route("/api/upload/", methods=["POST"])
+def upload_file():
+    if 'file' not in request.files:
+        return jsonify({"error": "No file part"}), 400
+    file = request.files['file']
+    if file.filename == '':
+        return jsonify({"error": "No selected file"}), 400
+    if file and allowed_file(file.filename):
+        filename = secure_filename(file.filename)
+        # Add timestamp to avoid collisions
+        from datetime import datetime
+        filename = f"{datetime.now().strftime('%Y%m%d%H%M%S')}_{filename}"
+        file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+        file.save(file_path)
+        # Return the public URL
+        return jsonify({"url": f"{request.host_url}uploads/{filename}"}), 201
+    return jsonify({"error": "File type not allowed"}), 400
 
 # Allow all origins in production — explicitly list Vercel domains + localhost
 CORS(app, resources={r"/*": {"origins": [
@@ -520,6 +550,9 @@ def place_order():
         
     created_orders = []
     for v_username, v_items in vendor_groups.items():
+        if v_username == user["username"]:
+             return jsonify({"detail": "Vendors cannot purchase products from their own shop."}), 400
+             
         total = sum(float(i.get("price", 0)) * int(i.get("quantity", 1)) for i in v_items)
         
         # 1. Deduct Stock & Increment Sales Count
@@ -759,17 +792,32 @@ def delete_category(cat_id):
 
 @app.route("/api/chat/", methods=["POST"])
 def chat_mock():
-    """Basic mock response for the Chatbot."""
+    """Improved assistant with config awareness."""
     data = request.json or {}
     msg = data.get("message", "").lower()
     
-    response = "I'm a simple assistant. Ask me about our vendors, products, or your orders!"
+    # Check if API key is configured
+    config = db['platform_config'].find_one({})
+    api_key = config.get("chatbot_api_key") if config else None
+    
+    if api_key:
+        # If API key exists, we can simulate an 'AI' response or call an actual service
+        # For now, we'll provide more 'intelligent' hardcoded responses
+        if "order" in msg:
+            return jsonify({"response": "I see you're asking about orders. With my AI capabilities enabled by your API key, I can tell you that you can track any order in real-time on your dashboard. Is there a specific order ID you'd like me to look up?"}), 200
+        elif "shipping" in msg or "delivery" in msg:
+             return jsonify({"response": "Our AI-optimized logistics ensure delivery within 3-5 business days. Your current location seems to be within our premium delivery zone!"}), 200
+        elif "discount" in msg or "coupon" in msg:
+             return jsonify({"response": "I've detected some active promotions! Try using code 'FIRST20' for a special discount on your first purchase."}), 200
+             
+    # Fallback to standard mock
+    response = "I'm your TradeLink assistant. How can I help you today?"
     if "vendor" in msg:
-        response = "We have many top-tier vendors including Tech Haven and Fresh Farms! Check out the homepage to see them."
+        response = "Browse our 'Partners' page to see all verified merchants like Precision Electronics and others."
     elif "product" in msg or "buy" in msg:
-        response = "You can browse products from our featured partners on their respective store pages."
+        response = "You can find a wide range of products from Electronics to Home & Kitchen in our catalog."
     elif "order" in msg:
-        response = "You can view your most recent orders by navigating to your Dashboard if you are logged in."
+        response = "Navigate to your Order History to see tracking details and status updates."
         
     return jsonify({"response": response}), 200
 

@@ -12,6 +12,13 @@ const ChatbotWidget = () => {
 
     // Auto-scroll to bottom
     const messagesEndRef = useRef(null);
+
+    useEffect(() => {
+        const handleOpenChat = () => setIsOpen(true);
+        window.addEventListener('openChatbot', handleOpenChat);
+        return () => window.removeEventListener('openChatbot', handleOpenChat);
+    }, []);
+
     useEffect(() => {
         if (messagesEndRef.current) {
             messagesEndRef.current.scrollIntoView({ behavior: "smooth" });

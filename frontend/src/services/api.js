@@ -396,5 +396,21 @@ export const api = {
             console.error("Notification error", e);
             return [];
         }
+    },
+
+    uploadImage: async (file) => {
+        const formData = new FormData();
+        formData.append('file', file);
+
+        const headers = getAuthHeaders();
+        delete headers['Content-Type'];
+
+        const response = await fetch(`${API_BASE_URL.replace('/api', '')}/api/upload/`, {
+            method: 'POST',
+            headers: headers,
+            body: formData
+        });
+        if (!response.ok) throw new Error('Image upload failed');
+        return response.json();
     }
 };
