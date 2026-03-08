@@ -161,7 +161,7 @@ const PartnersPage = ({ activeCategory = 'All', setActiveCategory }) => {
                     {['Mobiles', 'Fashion', 'Electronics', 'Appliances', 'Beauty', 'Toys', 'Sports', 'Home & Kitchen'].map(cat => (
                         <div key={cat} style={styles.catItem} className="cat-hover" onClick={() => {
                             if (setActiveCategory) setActiveCategory(cat);
-                            navigate(`/?search=`); // Clear search on category click
+                            navigate('/'); // Clear search by navigating to root without query
                         }}>
                             <div style={styles.catCircle}>
                                 <div style={styles.catIconWrapper}>
@@ -193,7 +193,7 @@ const PartnersPage = ({ activeCategory = 'All', setActiveCategory }) => {
 
                 {/* AI Recommendations Section */}
                 {recommendations.length > 0 && (
-                    <div style={styles.sectionCard} className="card">
+                    <div style={styles.sectionCard} className="card" id="products-grid-section">
                         <div style={styles.sectionHeader}>
                             <div style={styles.sectionTitleBlock}>
                                 <h2 style={styles.sectionTitle}>Recommended For You</h2>
@@ -223,18 +223,19 @@ const PartnersPage = ({ activeCategory = 'All', setActiveCategory }) => {
                     <div style={styles.sectionHeader}>
                         <div style={styles.sectionTitleBlock}>
                             <h2 style={styles.sectionTitle}>
-                                {searchQuery ? `Search Results: ${searchQuery}` : `${activeCategory} Collections`}
+                                {searchQuery ? `Search Results: ${searchQuery}` : `${activeCategory === 'All' ? 'Our' : activeCategory} Collections`}
                             </h2>
                             <p style={styles.sectionSubtitle}>
-                                {searchQuery ? `Products matching your query` : `The latest in high-performance products`}
+                                {searchQuery ? `Products matching your query` : `The latest in premium ${activeCategory === 'All' ? 'marketplace' : activeCategory.toLowerCase()} selections`}
                             </p>
                         </div>
                         {!searchQuery && (
                             <button style={styles.viewAllBtn} onClick={() => {
                                 if (activeCategory !== 'All') {
-                                    navigate(`/?search=${activeCategory}`);
+                                    navigate(`/?search=${encodeURIComponent(activeCategory)}`);
                                 } else {
-                                    navigate('/?search=Electronics');
+                                    // If 'All', scroll to the full grid
+                                    document.getElementById('products-grid-section')?.scrollIntoView({ behavior: 'smooth' });
                                 }
                             }}>VIEW COLLECTION</button>
                         )}
