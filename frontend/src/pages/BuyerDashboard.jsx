@@ -4,7 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { api } from '../services/api';
 import { Link } from 'react-router-dom';
 import { jsPDF } from 'jspdf';
-import 'jspdf-autotable';
+import autoTable from 'jspdf-autotable';
 import './BuyerDashboard.css';
 
 const BuyerDashboard = () => {
@@ -69,12 +69,12 @@ const BuyerDashboard = () => {
         const tableColumn = ["Item Description", "Price", "Qty", "Total"];
         const tableRows = (order.items || []).map(item => [
             item.name,
-            `INR ${item.price.toLocaleString()}`,
+            `INR ${Number(item.price || 0).toLocaleString()}`,
             item.quantity,
-            `INR ${(item.price * item.quantity).toLocaleString()}`
+            `INR ${(Number(item.price || 0) * Number(item.quantity || 0)).toLocaleString()}`
         ]);
 
-        doc.autoTable({
+        autoTable(doc, {
             startY: 85,
             head: [tableColumn],
             body: tableRows,
@@ -83,16 +83,17 @@ const BuyerDashboard = () => {
             alternateRowStyles: { fillColor: [249, 250, 251] }
         });
 
-        const finalY = doc.previousAutoTable.finalY + 10;
+        const finalY = doc.lastAutoTable.finalY + 10;
         doc.setFontSize(14);
         doc.setTextColor(33);
-        doc.text(`TOTAL AMOUNT: INR ${order.total_amount.toLocaleString()}`, 190, finalY, { align: 'right' });
+        doc.text(`TOTAL AMOUNT: INR ${Number(order.total_amount || 0).toLocaleString()}`, 190, finalY, { align: 'right' });
 
         doc.setFontSize(10);
         doc.setTextColor(150);
         doc.text('Thank you for choosing TradeLink.', 105, finalY + 30, { align: 'center' });
 
-        doc.save(`Invoice_${String(order._id || order.id).slice(-8)}.pdf`);
+        const saveId = String(order._id || order.id || 'order').slice(-8);
+        doc.save(`Invoice_${saveId}.pdf`);
     };
 
     const saveProfileUpdates = async (updates) => {
@@ -211,12 +212,12 @@ const BuyerDashboard = () => {
             ) : (
                 <div className="buyer-order-list">
                     {orders.slice(0, 8).map(order => (
-                        <div key={order.id} className="buyer-order-item card">
+                        <div key={order._id || order.id || Math.random()} className="buyer-order-item card">
                             <div style={{ backgroundColor: '#f8fafc', padding: '16px', borderRadius: 'var(--radius-sm)' }}>
                                 <Package size={32} color="var(--brand-primary)" />
                             </div>
                             <div className="buyer-order-details">
-                                <div className="buyer-order-name">ORDER ID: {order.id.toString().slice(-8).toUpperCase()}</div>
+                                <div className="buyer-order-name">ORDER ID: {String(order._id || order.id || 'N/A').slice(-8).toUpperCase()}</div>
                                 <div className="buyer-order-price">₹{order.total_amount.toLocaleString()}</div>
                                 <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '6px', fontWeight: 600 }}>
                                     <Clock size={12} style={{ verticalAlign: 'middle', marginRight: '4px' }} />

@@ -1,8 +1,73 @@
 import React from 'react';
-import { X, User, MapPin, Phone, CreditCard, ShoppingBag, Calendar, CheckCircle } from 'lucide-react';
+import { X, User, MapPin, Phone, CreditCard, ShoppingBag, Calendar, CheckCircle, Download } from 'lucide-react';
+import { jsPDF } from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 const OrderDetailsModal = ({ isOpen, onClose, order }) => {
     if (!isOpen || !order) return null;
+
+    const handleDownloadInvoice = () => {
+        try {
+            const doc = new jsPDF();
+
+            // Add Header
+            doc.setFontSize(22);
+            doc.setTextColor(40, 70, 229);
+            doc.text('TRADELINK MARKETPLACE', 105, 20, { align: 'center' });
+
+            doc.setFontSize(10);
+            doc.setTextColor(100);
+            doc.text('PREMIUM E-COMMERCE ECOSYSTEM', 105, 26, { align: 'center' });
+
+            doc.setDrawColor(230);
+            doc.line(20, 32, 190, 32);
+
+            doc.setFontSize(12);
+            doc.setTextColor(33);
+            const orderIdDisplay = String(order._id || order.id || 'N/A').slice(-6).toUpperCase();
+            doc.text(`INVOICE: #INV-${orderIdDisplay}`, 20, 45);
+            doc.text(`DATE: ${new Date(order.created_at || Date.now()).toLocaleDateString()}`, 190, 45, { align: 'right' });
+
+            doc.setFontSize(10);
+            doc.text('BILL TO:', 20, 60);
+            doc.setFontSize(12);
+            doc.text((order.buyer_username || 'GUEST').toUpperCase(), 20, 66);
+            doc.setFontSize(10);
+            doc.setTextColor(100);
+            doc.text(order.buyer_email || '', 20, 71);
+
+            const tableColumn = ["Item Description", "Price", "Qty", "Total"];
+            const tableRows = (order.items || []).map(item => [
+                item.product_name || item.name,
+                `INR ${Number(item.price || 0).toLocaleString()}`,
+                item.quantity,
+                `INR ${(Number(item.price || 0) * Number(item.quantity || 0)).toLocaleString()}`
+            ]);
+
+            autoTable(doc, {
+                startY: 85,
+                head: [tableColumn],
+                body: tableRows,
+                theme: 'grid',
+                headStyles: { fillColor: [40, 70, 229], textColor: [255, 255, 255] },
+                alternateRowStyles: { fillColor: [249, 250, 251] }
+            });
+
+            const finalY = doc.lastAutoTable.finalY + 10;
+            doc.setFontSize(14);
+            doc.setTextColor(33);
+            doc.text(`TOTAL AMOUNT: INR ${Number(order.total_amount || 0).toLocaleString()}`, 190, finalY, { align: 'right' });
+
+            doc.setFontSize(10);
+            doc.setTextColor(150);
+            doc.text('Thank you for choosing TradeLink.', 105, finalY + 30, { align: 'center' });
+
+            doc.save(`Invoice_${orderIdDisplay}.pdf`);
+        } catch (error) {
+            console.error("PDF Generation Error:", error);
+            alert("Failed to generate invoice. Please check the console for details.");
+        }
+    };
 
     return (
         <div style={styles.overlay}>
@@ -10,7 +75,7 @@ const OrderDetailsModal = ({ isOpen, onClose, order }) => {
                 <div style={styles.header}>
                     <div style={styles.headerTitleGroup}>
                         <h2 style={styles.title}>Order Details</h2>
-                        <span style={styles.orderId}>#TRL-{order.id.toString().slice(-6)}</span>
+                        <span style={styles.orderId}>#TRL-{String(order.id || order._id || '').slice(-6).toUpperCase()}</span>
                     </div>
                     <button onClick={onClose} style={styles.closeBtn}><X size={20} /></button>
                 </div>
@@ -77,6 +142,12 @@ const OrderDetailsModal = ({ isOpen, onClose, order }) => {
                 </div>
 
                 <div style={styles.footer}>
+                    <button
+                        onClick={handleDownloadInvoice}
+                        style={{ ...styles.secondaryBtn, display: 'flex', alignItems: 'center', gap: '8px', border: '1px solid var(--brand-primary)', color: 'var(--brand-primary)' }}
+                    >
+                        <Download size={18} /> Download Invoice
+                    </button>
                     {order.status === 'Processing' && (
                         <button style={styles.primaryBtn}>
                             <CheckCircle size={18} /> Mark as Shipped

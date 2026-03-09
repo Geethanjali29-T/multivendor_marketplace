@@ -187,7 +187,13 @@ const PartnersPage = ({ activeCategory = 'All', setActiveCategory }) => {
                     <div style={styles.bannerOverlay} className="glass hero-banner-overlay">
                         <div style={styles.bannerText}>SUMMER COLLECTION 2026</div>
                         <div style={styles.bannerSub}>UP TO 70% OFF PREMIUM BRANDS</div>
-                        <button style={styles.bannerBtn} className="btn btn-primary">SHOP NOW</button>
+                        <button
+                            style={styles.bannerBtn}
+                            className="btn btn-primary"
+                            onClick={() => document.getElementById('products-grid-section')?.scrollIntoView({ behavior: 'smooth' })}
+                        >
+                            SHOP NOW
+                        </button>
                     </div>
                 </div>
 

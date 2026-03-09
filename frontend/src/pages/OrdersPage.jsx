@@ -3,7 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { Package, Truck, CheckCircle, Clock, ChevronRight, ArrowLeft, MapPin, Star, ShoppingBag, ExternalLink, ShieldCheck } from 'lucide-react';
 import { api } from '../services/api';
 import { jsPDF } from 'jspdf';
-import 'jspdf-autotable';
+import autoTable from 'jspdf-autotable';
 import { useAuth } from '../contexts/AuthContext';
 
 const OrdersPage = () => {
@@ -74,60 +74,65 @@ const OrdersPage = () => {
     const orderStatus = getStatusStep(currentOrder.status);
 
     const handleDownloadInvoice = () => {
-        const doc = new jsPDF();
+        try {
+            const doc = new jsPDF();
 
-        // Add Header
-        doc.setFontSize(22);
-        doc.setTextColor(40, 70, 229);
-        doc.text('TRADELINK MARKETPLACE', 105, 20, { align: 'center' });
+            // Add Header
+            doc.setFontSize(22);
+            doc.setTextColor(40, 70, 229);
+            doc.text('TRADELINK MARKETPLACE', 105, 20, { align: 'center' });
 
-        doc.setFontSize(10);
-        doc.setTextColor(100);
-        doc.text('PREMIUM E-COMMERCE ECOSYSTEM', 105, 26, { align: 'center' });
+            doc.setFontSize(10);
+            doc.setTextColor(100);
+            doc.text('PREMIUM E-COMMERCE ECOSYSTEM', 105, 26, { align: 'center' });
 
-        doc.setDrawColor(230);
-        doc.line(20, 32, 190, 32);
+            doc.setDrawColor(230);
+            doc.line(20, 32, 190, 32);
 
-        doc.setFontSize(12);
-        doc.setTextColor(33);
-        doc.text(`INVOICE: #INV-${String(currentOrder._id || currentOrder.id).slice(-6).toUpperCase()}`, 20, 45);
-        doc.text(`DATE: ${new Date(currentOrder.created_at || Date.now()).toLocaleDateString()}`, 190, 45, { align: 'right' });
+            doc.setFontSize(12);
+            doc.setTextColor(33);
+            doc.text(`INVOICE: #INV-${String(currentOrder._id || currentOrder.id).slice(-6).toUpperCase()}`, 20, 45);
+            doc.text(`DATE: ${new Date(currentOrder.created_at || Date.now()).toLocaleDateString()}`, 190, 45, { align: 'right' });
 
-        doc.setFontSize(10);
-        doc.text('BILL TO:', 20, 60);
-        doc.setFontSize(12);
-        doc.text((user?.username || 'VALUED CUSTOMER').toUpperCase(), 20, 66);
-        doc.setFontSize(10);
-        doc.setTextColor(100);
-        doc.text(user?.email || '', 20, 71);
+            doc.setFontSize(10);
+            doc.text('BILL TO:', 20, 60);
+            doc.setFontSize(12);
+            doc.text((user?.username || 'VALUED CUSTOMER').toUpperCase(), 20, 66);
+            doc.setFontSize(10);
+            doc.setTextColor(100);
+            doc.text(user?.email || '', 20, 71);
 
-        const tableColumn = ["Item Description", "Price", "Qty", "Total"];
-        const tableRows = (currentOrder?.items || []).map(item => [
-            item.name || 'Unknown Item',
-            `INR ${(item.price || 0).toLocaleString()}`,
-            item.quantity || 1,
-            `INR ${((item.price || 0) * (item.quantity || 1)).toLocaleString()}`
-        ]);
+            const tableColumn = ["Item Description", "Price", "Qty", "Total"];
+            const tableRows = (currentOrder?.items || []).map(item => [
+                item.name || 'Unknown Item',
+                `INR ${Number(item.price || 0).toLocaleString()}`,
+                item.quantity || 1,
+                `INR ${(Number(item.price || 0) * (item.quantity || 1)).toLocaleString()}`
+            ]);
 
-        doc.autoTable({
-            startY: 85,
-            head: [tableColumn],
-            body: tableRows,
-            theme: 'grid',
-            headStyles: { fillColor: [40, 70, 229], textColor: [255, 255, 255] },
-            alternateRowStyles: { fillColor: [249, 250, 251] }
-        });
+            autoTable(doc, {
+                startY: 85,
+                head: [tableColumn],
+                body: tableRows,
+                theme: 'grid',
+                headStyles: { fillColor: [40, 70, 229], textColor: [255, 255, 255] },
+                alternateRowStyles: { fillColor: [249, 250, 251] }
+            });
 
-        const finalY = doc.previousAutoTable.finalY + 10;
-        doc.setFontSize(14);
-        doc.setTextColor(33);
-        doc.text(`TOTAL AMOUNT: INR ${currentOrder.total_amount.toLocaleString()}`, 190, finalY, { align: 'right' });
+            const finalY = doc.lastAutoTable.finalY + 10;
+            doc.setFontSize(14);
+            doc.setTextColor(33);
+            doc.text(`TOTAL AMOUNT: INR ${Number(currentOrder.total_amount || 0).toLocaleString()}`, 190, finalY, { align: 'right' });
 
-        doc.setFontSize(10);
-        doc.setTextColor(150);
-        doc.text('Thank you for choosing TradeLink.', 105, finalY + 30, { align: 'center' });
+            doc.setFontSize(10);
+            doc.setTextColor(150);
+            doc.text('Thank you for choosing TradeLink.', 105, finalY + 30, { align: 'center' });
 
-        doc.save(`Invoice_${String(currentOrder._id || currentOrder.id).slice(-8)}.pdf`);
+            doc.save(`Invoice_${String(currentOrder._id || currentOrder.id).slice(-8)}.pdf`);
+        } catch (error) {
+            console.error("PDF Generation Error (OrdersPage):", error);
+            alert("Failed to generate invoice. Please check the console for details.");
+        }
     };
 
     return (
