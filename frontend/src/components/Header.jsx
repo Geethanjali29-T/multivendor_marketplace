@@ -13,6 +13,11 @@ const Header = ({ activeCategory, setActiveCategory }) => {
     const navigate = useNavigate();
     const isBusinessPage = location.pathname === '/';
 
+    console.log("[Header] Rendering with user:", user);
+    const userSafeName = user?.username || user?.email || 'User';
+    const userInitial = String(userSafeName).charAt(0).toUpperCase();
+    console.log("[Header] Computed userSafeName:", userSafeName, "userInitial:", userInitial);
+
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [showAllCategories, setShowAllCategories] = useState(false);
     const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
@@ -111,11 +116,11 @@ const Header = ({ activeCategory, setActiveCategory }) => {
                                     onClick={() => setIsProfileDropdownOpen(!isProfileDropdownOpen)}
                                 >
                                     <div style={styles.avatarCircle}>
-                                        {user.username.charAt(0).toUpperCase()}
+                                        {userInitial}
                                     </div>
                                     <div style={{ display: 'flex', flexDirection: 'column' }}>
                                         <span style={styles.actionLabel}>Profile</span>
-                                        <span style={styles.userName}>{user.username}</span>
+                                        <span style={styles.userName}>{user.username || user.email || 'User'}</span>
                                     </div>
                                     <ChevronDown size={14} style={{
                                         color: 'var(--text-muted)',
@@ -127,7 +132,7 @@ const Header = ({ activeCategory, setActiveCategory }) => {
                                 {isProfileDropdownOpen && (
                                     <div style={styles.profileDropdown} className="fade-in card">
                                         <div style={styles.dropdownHeader}>
-                                            <div style={styles.dropdownUserTitle}>Welcome, {user.username}</div>
+                                            <div style={styles.dropdownUserTitle}>Welcome, {user.username || user.email || 'User'}</div>
                                             <div style={styles.dropdownUserSub}>Membership: Gold Tier</div>
                                         </div>
                                         <div style={styles.dropdownSection}>

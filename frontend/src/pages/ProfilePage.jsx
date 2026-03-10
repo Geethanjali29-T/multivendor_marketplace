@@ -45,6 +45,17 @@ const ProfilePage = () => {
     const [newCard, setNewCard] = useState({ holder: '', number: '', expiry: '', type: 'Visa' });
 
     useEffect(() => {
+        if (user) {
+            setProfileData({
+                username: user.username || '',
+                email: user.email || '',
+                phone: user.phone || '',
+                address: user.address || '',
+            });
+        }
+    }, [user]);
+
+    useEffect(() => {
         if (user?.role === 'VENDOR' || user?.role === 'vendor') {
             const fetchShop = async () => {
                 try {
@@ -154,7 +165,7 @@ const ProfilePage = () => {
             doc.setFontSize(10);
             doc.text('BILL TO:', 20, 60);
             doc.setFontSize(12);
-            doc.text(user.username.toUpperCase(), 20, 66);
+            doc.text((user?.username || user?.email || 'User').toUpperCase(), 20, 66);
             doc.setFontSize(10);
             doc.setTextColor(100);
             doc.text(user.email, 20, 71);
@@ -503,9 +514,9 @@ const ProfilePage = () => {
                 {/* Retail Sidebar */}
                 <aside className="retail-sidebar">
                     <div className="retail-user-header">
-                        <div className="retail-user-avatar">{user.username.charAt(0).toUpperCase()}</div>
+                        <div className="retail-user-avatar">{(user?.username || user?.email || 'U').charAt(0).toUpperCase()}</div>
                         <div>
-                            <div className="retail-user-name">{user.username}</div>
+                            <div className="retail-user-name">{user?.username || user?.email || 'User'}</div>
                             <div className="retail-user-role">{user.role?.toUpperCase()}</div>
                         </div>
                     </div>

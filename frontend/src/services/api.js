@@ -117,12 +117,12 @@ export const api = {
     },
 
     setupVendorProfile: async (shopData) => {
-        const response = await fetch(`${API_BASE_URL}/vendors/setup/`, {
-            method: 'POST',
+        const response = await fetch(`${API_BASE_URL}/vendors/my-shop/`, {
+            method: 'PUT',
             headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
             body: JSON.stringify(shopData)
         });
-        if (!response.ok) throw new Error('Failed to create shop profile');
+        if (!response.ok) throw new Error('Failed to update shop profile');
         return response.json();
     },
 

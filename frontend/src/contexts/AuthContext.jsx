@@ -26,7 +26,7 @@ export const AuthProvider = ({ children }) => {
                     setUser({
                         uid: firebaseUser.uid,
                         email: firebaseUser.email,
-                        username: firebaseUser.displayName || profileData.username || 'User',
+                        username: profileData.username || firebaseUser.displayName || 'User',
                         role: profileData.role || 'BUYER',
                         isGoogleAuth: true
                     });
