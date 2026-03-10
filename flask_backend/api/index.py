@@ -1,20 +1,35 @@
 import os
 import random
+import jwt
+import certifi
+from datetime import datetime, timedelta
 from flask import Flask, jsonify, request, send_from_directory
 from flask_cors import CORS
 from werkzeug.utils import secure_filename
-import os
+from werkzeug.security import generate_password_hash, check_password_hash
+from dotenv import load_dotenv
+from pymongo import MongoClient
+from pymongo.server_api import ServerApi
+from bson import ObjectId
 
-# Load environment variables from .env file (local dev only; Vercel uses its own env vars)
+# Load environment variables
 load_dotenv()
 
 app = Flask(__name__)
 
 # Configure Upload Folder
-UPLOAD_FOLDER = 'uploads'
+# Vercel filesystem is read-only, only /tmp is writable
+IS_VERCEL = "VERCEL" in os.environ
+UPLOAD_FOLDER = "/tmp/uploads" if IS_VERCEL else "uploads"
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+
+def ensure_upload_dir():
+    if not os.path.exists(app.config['UPLOAD_FOLDER']):
+        try:
+            os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+        except Exception as e:
+            print(f"Directory creation error: {e}")
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
@@ -25,6 +40,7 @@ def serve_upload(filename):
 
 @app.route("/api/upload/", methods=["POST"])
 def upload_file():
+    ensure_upload_dir()
     if 'file' not in request.files:
         return jsonify({"error": "No file part"}), 400
     file = request.files['file']
@@ -52,8 +68,6 @@ CORS(app, resources={r"/*": {"origins": [
 
 # MongoDB connection — use a longer timeout for Vercel cold starts
 MONGO_URI = os.environ.get("MONGO_URI")
-
-import certifi
 
 # Lazy global connection reused across serverless invocations
 _db = None
@@ -94,10 +108,25 @@ except Exception as e:
 def index():
     """Health check endpoint."""
     try:
-        get_db().command('ping')
-        return jsonify({"status": "ok", "message": "Flask connected to MongoDB!"}), 200
+        db_conn = get_db()
+        db_conn.command('ping')
+        return jsonify({
+            "status": "ok", 
+            "message": "Flask connected to MongoDB!",
+            "env": {
+                "MONGO_URI_PRESENT": bool(MONGO_URI),
+                "IS_VERCEL": IS_VERCEL
+            }
+        }), 200
     except Exception as e:
-        return jsonify({"status": "error", "message": str(e)}), 503
+        return jsonify({
+            "status": "error", 
+            "message": str(e),
+            "env": {
+                "MONGO_URI_PRESENT": bool(MONGO_URI),
+                "IS_VERCEL": IS_VERCEL
+            }
+        }), 503
 
 # ==========================================
 # DATABASE SEEDING
@@ -192,13 +221,6 @@ def seed_database():
             {"product_id": "p14", "vendor_id": "v_book_1", "vendor_username": "vendor_book", "name": "Introduction to Algorithms", "price": 75.00, "stock": 15, "image": "https://images.unsplash.com/photo-1532012197267-da84d127e765?w=400"}
         ])
         print("Database seeded completely with new dynamic data.")
-
-if db is not None:
-    seed_database()
-
-import jwt
-from datetime import datetime, timedelta
-from werkzeug.security import generate_password_hash, check_password_hash
 
 SECRET_KEY = os.environ.get('SECRET_KEY', 'my_tradelink_super_secret_jwt_key')
 

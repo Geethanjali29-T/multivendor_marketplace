@@ -35,7 +35,7 @@ const OrdersPage = () => {
 
     const getStatusStep = (status) => {
         const s = status?.toUpperCase();
-        if (s === 'PLACED') return 0;
+        if (s === 'PENDING' || s === 'PLACED') return 0;
         if (s === 'PROCESSING') return 1;
         if (s === 'SHIPPED') return 2;
         if (s === 'OUT_FOR_DELIVERY') return 3;

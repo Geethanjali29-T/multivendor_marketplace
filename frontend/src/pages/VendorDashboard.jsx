@@ -153,6 +153,12 @@ const VendorDashboard = () => {
         try {
             await api.updateOrderStatus(orderId, newStatus);
             showMessage(`Order status updated to ${newStatus}`);
+
+            // Update selectedOrder locally so the modal reflects the change immediately
+            if (selectedOrder && (selectedOrder._id === orderId || selectedOrder.id === orderId)) {
+                setSelectedOrder({ ...selectedOrder, status: newStatus });
+            }
+
             fetchDashboardData();
         } catch (e) {
             showMessage("Failed to update status.", "error");
@@ -183,6 +189,45 @@ const VendorDashboard = () => {
             fetchDashboardData();
         } catch (err) {
             showMessage("Failed to delete product.", "error");
+        }
+    };
+
+    const handleExportOrders = () => {
+        if (filteredOrders.length === 0) {
+            showMessage("No orders to export.", "error");
+            return;
+        }
+
+        try {
+            const headers = ["Order ID", "Date", "Customer", "Total Amount", "Status", "Items Count"];
+            const csvRows = [headers.join(",")];
+
+            filteredOrders.forEach(order => {
+                const row = [
+                    (order.id || order._id || '').toString().slice(-6).toUpperCase(),
+                    new Date(order.created_at || Date.now()).toLocaleDateString(),
+                    order.buyer_username || 'Guest',
+                    order.total_amount || 0,
+                    order.status || 'Pending',
+                    order.items?.length || 0
+                ];
+                csvRows.push(row.map(field => `"${field}"`).join(","));
+            });
+
+            const csvString = csvRows.join("\n");
+            const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement("a");
+            link.setAttribute("href", url);
+            link.setAttribute("download", `orders_export_${new Date().toISOString().slice(0, 10)}.csv`);
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            showMessage("Order list exported successfully!");
+        } catch (error) {
+            console.error("Export Error:", error);
+            showMessage("Failed to export order list.", "error");
         }
     };
 
@@ -375,7 +420,7 @@ const VendorDashboard = () => {
                     <h1 className="vendor-page-title">Order Management</h1>
                     <p className="vendor-page-subtitle">Track and fulfill your customer orders efficiently.</p>
                 </div>
-                <button className="vendor-btn-primary">
+                <button className="vendor-btn-primary" onClick={handleExportOrders}>
                     <Download size={18} /> Export List
                 </button>
             </div>
@@ -669,6 +714,7 @@ const VendorDashboard = () => {
                 isOpen={isOrderModalOpen}
                 onClose={() => setIsOrderModalOpen(false)}
                 order={selectedOrder}
+                onStatusUpdate={handleOrderStatusUpdate}
             />
 
             <ProductFormModal

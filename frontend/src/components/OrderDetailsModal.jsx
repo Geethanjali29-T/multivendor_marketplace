@@ -3,7 +3,7 @@ import { X, User, MapPin, Phone, CreditCard, ShoppingBag, Calendar, CheckCircle,
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
-const OrderDetailsModal = ({ isOpen, onClose, order }) => {
+const OrderDetailsModal = ({ isOpen, onClose, order, onStatusUpdate }) => {
     if (!isOpen || !order) return null;
 
     const handleDownloadInvoice = () => {
@@ -142,17 +142,35 @@ const OrderDetailsModal = ({ isOpen, onClose, order }) => {
                 </div>
 
                 <div style={styles.footer}>
+                    <div style={{ marginRight: 'auto', display: 'flex', alignItems: 'center', gap: '12px' }}>
+                        <span style={{ fontSize: '0.85rem', fontWeight: 600, color: '#64748b' }}>Update Status:</span>
+                        <select
+                            value={order.status}
+                            onChange={(e) => onStatusUpdate(order._id || order.id, e.target.value)}
+                            style={{
+                                padding: '8px 12px',
+                                borderRadius: '8px',
+                                border: '1px solid #e2e8f0',
+                                backgroundColor: 'white',
+                                fontSize: '0.85rem',
+                                fontWeight: 600,
+                                cursor: 'pointer',
+                                outline: 'none'
+                            }}
+                        >
+                            <option value="Pending">Pending</option>
+                            <option value="Processing">Processing</option>
+                            <option value="Shipped">Shipped</option>
+                            <option value="Delivered">Delivered</option>
+                            <option value="Canceled">Canceled</option>
+                        </select>
+                    </div>
                     <button
                         onClick={handleDownloadInvoice}
                         style={{ ...styles.secondaryBtn, display: 'flex', alignItems: 'center', gap: '8px', border: '1px solid var(--brand-primary)', color: 'var(--brand-primary)' }}
                     >
                         <Download size={18} /> Download Invoice
                     </button>
-                    {order.status === 'Processing' && (
-                        <button style={styles.primaryBtn}>
-                            <CheckCircle size={18} /> Mark as Shipped
-                        </button>
-                    )}
                     <button onClick={onClose} style={styles.secondaryBtn}>Close</button>
                 </div>
             </div>
