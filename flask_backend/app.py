@@ -2,10 +2,11 @@ import os
 import random
 from datetime import datetime
 from bson.objectid import ObjectId
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, request, send_from_directory
 from flask_cors import CORS
 from pymongo.mongo_client import MongoClient
 from pymongo.server_api import ServerApi
+from werkzeug.utils import secure_filename
 from dotenv import load_dotenv
 
 # Load environment variables from .env file (local dev only; Vercel uses its own env vars)
@@ -19,6 +20,44 @@ CORS(app, resources={r"/*": {
     "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     "allow_headers": ["Content-Type", "Authorization", "X-User-Email"]
 }}, supports_credentials=True)
+
+# Configure Upload Folder
+UPLOAD_FOLDER = "uploads"
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+
+def ensure_upload_dir():
+    if not os.path.exists(app.config['UPLOAD_FOLDER']):
+        try:
+            os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+        except Exception as e:
+            print(f"Directory creation error: {e}")
+
+def allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+@app.route('/uploads/<path:filename>')
+def serve_upload(filename):
+    return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
+
+@app.route("/api/upload/", methods=["POST"])
+def upload_file():
+    ensure_upload_dir()
+    if 'file' not in request.files:
+        return jsonify({"error": "No file part"}), 400
+    file = request.files['file']
+    if file.filename == '':
+        return jsonify({"error": "No selected file"}), 400
+    if file and allowed_file(file.filename):
+        filename = secure_filename(file.filename)
+        # Add timestamp to avoid collisions
+        from datetime import datetime
+        filename = f"{datetime.now().strftime('%Y%m%d%H%M%S')}_{filename}"
+        file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+        file.save(file_path)
+        # Return the public URL
+        return jsonify({"url": f"{request.host_url}uploads/{filename}"}), 201
+    return jsonify({"error": "File type not allowed"}), 400
 
 @app.before_request
 def log_request_info():
@@ -58,7 +97,7 @@ def get_db():
             socketTimeoutMS=20000
         )
         client.admin.command('ping')
-        print("Connected to MongoDB Atlas!")
+        print(f"Connected to MongoDB Atlas!")
         _db = client['marketplace_flask_db']
         return _db
     except Exception as e:
@@ -433,30 +472,7 @@ def get_user_notifications():
         print(f"Error in get_user_notifications: {e}")
         return jsonify([]), 200
 
-@app.route("/api/vendors/my-shop/", methods=["GET", "PUT"])
-def get_my_shop():
-    """Get or update the shop details for the logged-in vendor."""
-    user = get_current_user()
-    if not user or str(user.get("role", "")).upper() != "VENDOR":
-         return jsonify({"detail": "Unauthorized"}), 401
-    
-    vendors_coll = get_coll('vendors')
-    if request.method == "PUT":
-        # Update shop data
-        data = request.json or {}
-        vendors_coll.update_one(
-            {"username": user["username"]},
-            {"$set": data},
-            upsert=True
-        )
-        updated = vendors_coll.find_one({"username": user["username"]})
-        return jsonify(convert_id(updated)), 200
-         
-    vendor = vendors_coll.find_one({"username": user["username"]})
-    if not vendor:
-        return jsonify({"detail": "Not found"}), 404
-        
-    return jsonify(convert_id(vendor)), 200
+
 
 @app.route("/api/products/", methods=["GET"])
 def products_mock():
@@ -832,7 +848,7 @@ def chat():
         user_msg = data.get("message", "")
         
         # 1. Fetch config to get API KEY
-        config_coll = get_coll('config')
+        config_coll = get_coll('platform_config')
         config = config_coll.find_one({}) or {}
         api_key = config.get("chatbot_api_key", "")
         
@@ -871,18 +887,30 @@ def chat():
 # VENDOR SETUP ENDPOINTS
 # ==========================================
 
-@app.route("/api/vendors/setup/", methods=["POST"])
-def setup_vendor_profile():
-    """Endpoint for a vendor to create/update their public shop profile."""
+@app.route("/api/vendors/my-shop/", methods=["GET", "PUT"])
+@app.route("/api/vendors/setup/", methods=["POST", "PUT"])
+def manage_my_shop():
+    """Get or update the current vendor's shop profile."""
     user = get_current_user()
+    print(f"DEBUG: manage_my_shop reached. Method: {request.method}, User: {user}")
     if not user or str(user.get("role", "")).upper() != "VENDOR":
          return jsonify({"detail": "Unauthorized. Must be a vendor."}), 401
          
-    data = request.json or {}
+    vendors_coll = get_coll('vendors')
     
-    # Store vendor details using their username to link auth with shop
-    # Support both snake_case (frontend) and standard/camelCase keys
+    if request.method == "GET":
+        print(f"DEBUG: Entering GET block for {user['username']}")
+        vendor = vendors_coll.find_one({"username": user['username']})
+        if not vendor:
+            return jsonify({"detail": "Shop profile not found"}), 404
+        return jsonify(convert_id(vendor)), 200
+        
+    print(f"DEBUG: Entering PUT/POST block for {user['username']}")
+    # Handle PUT/POST (Setup/Update)
+    data = request.json or {}
+    print(f"DEBUG: Data received: {data}")
     vendor_doc = {
+
         "vendor_id": f"v_{user['username']}", 
         "username": user['username'],
         "name": data.get("shop_name") or data.get("name") or f"{user['username']}'s Shop",
@@ -896,19 +924,23 @@ def setup_vendor_profile():
         "banner_image": data.get("banner_image") or data.get("bannerUrl", ""),
         "shop_photo": data.get("shop_photo") or data.get("shopPhotoUrl", ""),
         "returnPolicy": data.get("returnPolicy", "Standard 7-day return policy."),
-        "isVisible": data.get("isVisible", True),
-        "rating": 5.0
+        "isVisible": data.get("isVisible", True)
     }
     
-    # Update if exists, otherwise insert
-    vendors_coll = get_coll('vendors')
+    # Preserve rating if user exists
+    existing = vendors_coll.find_one({"username": user['username']})
+    if existing and "rating" in existing:
+        vendor_doc["rating"] = existing["rating"]
+    else:
+        vendor_doc["rating"] = 5.0
+        
     vendors_coll.update_one(
         {"username": user['username']},
         {"$set": vendor_doc},
         upsert=True
     )
     
-    return jsonify({"message": "Shop profile created/updated successfully!"}), 201
+    return jsonify({"message": "Shop profile saved successfully!"}), 201
 
 @app.route("/api/products/add/", methods=["POST"])
 def add_product():
@@ -922,16 +954,17 @@ def add_product():
     vendor = vendors_coll.find_one({"username": user['username']})
     if not vendor:
         return jsonify({"detail": "Please create your shop profile first."}), 400
-        
+         
     data = request.json or {}
     
     product_doc = {
         "vendor_id": vendor["vendor_id"],
         "vendor_username": user["username"],
         "name": data.get("name", "New Product"),
-        "price": float(data.get("price", 0.0)),
-        "stock": int(data.get("stock", 0)),
-        "image": data.get("image", "https://images.unsplash.com/photo-1505751172876-fa1923c5c528?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&q=80"),
+        "category": data.get("category", "Electronics"),
+        "price": float(data.get("price") or 0.0),
+        "stock": int(data.get("stock") or 0),
+        "image": data.get("image") or "https://images.unsplash.com/photo-1505751172876-fa1923c5c528?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&q=80",
         "images": data.get("images", []),
         "variants": data.get("variants", []),
         "description": data.get("description", ""),
@@ -942,6 +975,7 @@ def add_product():
     products_coll.insert_one(product_doc)
     return jsonify({"message": "Product added successfully!"}), 201
 
+
 @app.route("/api/products/<product_id>", methods=["PUT"])
 def edit_product(product_id):
     user = get_current_user()
@@ -950,8 +984,9 @@ def edit_product(product_id):
     data = request.json or {}
     updated_data = {
         "name": data.get("name"),
-        "price": float(data.get("price", 0.0)),
-        "stock": int(data.get("stock", 0)),
+        "category": data.get("category"),
+        "price": float(data.get("price") or 0.0) if data.get("price") is not None else None,
+        "stock": int(data.get("stock") or 0) if data.get("stock") is not None else None,
         "image": data.get("image"),
         "images": data.get("images", []),
         "variants": data.get("variants", []),

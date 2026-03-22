@@ -459,29 +459,7 @@ def get_user_notifications():
         
     return jsonify(notifications), 200
 
-@app.route("/api/vendors/my-shop/", methods=["GET", "PUT"])
-def get_my_shop():
-    """Get or update the shop details for the logged-in vendor."""
-    user = get_current_user()
-    if not user or user.get("role", "").lower() != "vendor":
-         return jsonify({"detail": "Unauthorized"}), 401
-    
-    if request.method == "PUT":
-        # Update shop data
-        data = request.json or {}
-        db['vendors'].update_one(
-            {"username": user["username"]},
-            {"$set": data},
-            upsert=True
-        )
-        updated = db['vendors'].find_one({"username": user["username"]})
-        return jsonify(convert_id(updated)), 200
-         
-    vendor = db['vendors'].find_one({"username": user["username"]})
-    if not vendor:
-        return jsonify({"detail": "Not found"}), 404
-        
-    return jsonify(convert_id(vendor)), 200
+
 
 @app.route("/api/products/", methods=["GET"])
 def products_mock():
@@ -813,54 +791,71 @@ def delete_category(cat_id):
         return jsonify({"detail": "Invalid ID"}), 400
 
 @app.route("/api/chat/", methods=["POST"])
-def chat_mock():
-    """Improved assistant with config awareness."""
-    data = request.json or {}
-    msg = data.get("message", "").lower()
-    
-    # Check if API key is configured
-    config = db['platform_config'].find_one({})
-    api_key = config.get("chatbot_api_key") if config else None
-    
-    if api_key:
-        # If API key exists, we can simulate an 'AI' response or call an actual service
-        # For now, we'll provide more 'intelligent' hardcoded responses
-        if "order" in msg:
-            return jsonify({"response": "I see you're asking about orders. With my AI capabilities enabled by your API key, I can tell you that you can track any order in real-time on your dashboard. Is there a specific order ID you'd like me to look up?"}), 200
-        elif "shipping" in msg or "delivery" in msg:
-             return jsonify({"response": "Our AI-optimized logistics ensure delivery within 3-5 business days. Your current location seems to be within our premium delivery zone!"}), 200
-        elif "discount" in msg or "coupon" in msg:
-             return jsonify({"response": "I've detected some active promotions! Try using code 'FIRST20' for a special discount on your first purchase."}), 200
-             
-    # Fallback to standard mock
-    response = "I'm your TradeLink assistant. How can I help you today?"
-    if "vendor" in msg or "shop" in msg:
-        response = "Browse our 'Partners' page to see all our verified merchants across different categories."
-    elif "product" in msg or "buy" in msg:
-        response = "You can find a wide range of products from Electronics to Home & Kitchen in our catalog."
-    elif "order" in msg:
-        response = "Navigate to your Order History to see tracking details and status updates."
+def chat():
+    """Gemini-powered chatbot or real API call."""
+    try:
+        data = request.json or {}
+        user_msg = data.get("message", "")
         
-    return jsonify({"response": response}), 200
+        # 1. Fetch config to get API KEY
+        config = db['platform_config'].find_one({}) or {}
+        api_key = config.get("chatbot_api_key", "")
+        
+        if api_key and api_key.strip():
+            import requests
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}"
+            payload = {
+                "contents": [{
+                    "parts": [{"text": f"You are a helpful assistant for TradeLink Multi-Vendor Marketplace. Your goal is to help buyers find products, track orders, and answer platform questions concisely. User prompt: {user_msg}"}]
+                }]
+            }
+            try:
+                response = requests.post(url, json=payload, timeout=10)
+                if response.status_code == 200:
+                    result = response.json()
+                    ai_text = result['candidates'][0]['content']['parts'][0]['text']
+                    return jsonify({"response": ai_text}), 200
+            except Exception as e:
+                print(f"AI API Error: {str(e)}")
+        
+        # 2. Mock Fallback
+        msg = user_msg.lower()
+        response = "I'm a simple assistant. Ask me about our vendors, products, or your orders!"
+        if "vendor" in msg:
+            response = "We have many top-tier vendors including Tech Haven and Fresh Farms! Check out the homepage to see them."
+        elif "product" in msg or "buy" in msg:
+            response = "You can browse products from our featured partners on their respective store pages."
+        elif "order" in msg:
+            response = "You can view your most recent orders by navigating to your Dashboard if you are logged in."
+            
+        return jsonify({"response": response}), 200
+    except Exception as e:
+        return jsonify({"response": "I'm having a bit of trouble connecting to my brain. Try again?"}), 200
 
 # ==========================================
 # VENDOR SETUP ENDPOINTS
 # ==========================================
 
-@app.route("/api/vendors/setup/", methods=["POST"])
-def setup_vendor_profile():
-    """Endpoint for a vendor to create/update their public shop profile."""
+@app.route("/api/vendors/my-shop/", methods=["GET", "PUT"])
+@app.route("/api/vendors/setup/", methods=["POST", "PUT"])
+def manage_my_shop():
+    """Get or update the current vendor's shop profile."""
     user = get_current_user()
     if not user or user.get("role") != "VENDOR":
          return jsonify({"detail": "Unauthorized. Must be a vendor."}), 401
          
+    if request.method == "GET":
+        vendor = db['vendors'].find_one({"username": user['username']})
+        if not vendor:
+            return jsonify({"detail": "Shop profile not found"}), 404
+        return jsonify(convert_id(vendor)), 200
+        
+    # Handle PUT/POST (Setup/Update)
     data = request.json or {}
-    
-    # Store vendor details using their username to link auth with shop
     vendor_doc = {
-        "vendor_id": f"v_{user['username']}",  # Unique ID for the URL/System
+        "vendor_id": f"v_{user['username']}", 
         "username": user['username'],
-        "name": data.get("name", f"{user['username']}'s Shop"),
+        "name": data.get("name") or data.get("shop_name") or f"{user['username']}'s Shop",
         "category": data.get("category", "General"),
         "location": data.get("location", "Online"),
         "phone": data.get("phone", ""),
@@ -871,18 +866,23 @@ def setup_vendor_profile():
         "logoUrl": data.get("logoUrl", ""),
         "bannerUrl": data.get("bannerUrl", ""),
         "returnPolicy": data.get("returnPolicy", "Standard 7-day return policy."),
-        "isVisible": data.get("isVisible", True),
-        "rating": 5.0 # New shops start at 5 stars!
+        "isVisible": data.get("isVisible", True)
     }
     
-    # Update if exists, otherwise insert
+    # Preserve rating if user exists
+    existing = db['vendors'].find_one({"username": user['username']})
+    if existing and "rating" in existing:
+        vendor_doc["rating"] = existing["rating"]
+    else:
+        vendor_doc["rating"] = 5.0
+        
     db['vendors'].update_one(
         {"username": user['username']},
         {"$set": vendor_doc},
         upsert=True
     )
     
-    return jsonify({"message": "Shop profile created/updated successfully!"}), 201
+    return jsonify({"message": "Shop profile saved successfully!"}), 201
 
 @app.route("/api/products/add/", methods=["POST"])
 def add_product():
@@ -902,9 +902,10 @@ def add_product():
         "vendor_id": vendor["vendor_id"],
         "vendor_username": user["username"],
         "name": data.get("name", "New Product"),
-        "price": float(data.get("price", 0.0)),
-        "stock": int(data.get("stock", 0)),
-        "image": data.get("image", "https://images.unsplash.com/photo-1505751172876-fa1923c5c528?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&q=80"),
+        "category": data.get("category", "Electronics"),
+        "price": float(data.get("price") or 0.0),
+        "stock": int(data.get("stock") or 0),
+        "image": data.get("image") or "https://images.unsplash.com/photo-1505751172876-fa1923c5c528?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&q=80",
         "images": data.get("images", []),
         "variants": data.get("variants", []),
         "description": data.get("description", ""),
@@ -914,6 +915,7 @@ def add_product():
     db['products'].insert_one(product_doc)
     return jsonify({"message": "Product added successfully!"}), 201
 
+
 @app.route("/api/products/<product_id>", methods=["PUT"])
 def edit_product(product_id):
     user = get_current_user()
@@ -922,8 +924,9 @@ def edit_product(product_id):
     data = request.json or {}
     updated_data = {
         "name": data.get("name"),
-        "price": float(data.get("price", 0.0)),
-        "stock": int(data.get("stock", 0)),
+        "category": data.get("category"),
+        "price": float(data.get("price") or 0.0) if data.get("price") is not None else None,
+        "stock": int(data.get("stock") or 0) if data.get("stock") is not None else None,
         "image": data.get("image"),
         "images": data.get("images", []),
         "variants": data.get("variants", []),

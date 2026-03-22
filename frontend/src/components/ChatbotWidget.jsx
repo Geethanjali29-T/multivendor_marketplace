@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { MessageSquare, X, Send } from 'lucide-react';
+import { MessageSquare, X, Send, Plus, History, Sparkles } from 'lucide-react';
 import { api } from '../services/api';
 
 const ChatbotWidget = () => {
@@ -29,26 +29,11 @@ const ChatbotWidget = () => {
 
     const processResponse = async (userMsg) => {
         setIsTyping(true);
-        const apiKey = localStorage.getItem('chatbot_api_key');
         try {
-            if (apiKey) {
-                await new Promise(resolve => setTimeout(resolve, 1000));
-                let response = "I'm analyzing your inquiry with our advanced AI engine... ";
-                if (userMsg.toLowerCase().includes('interested in products')) {
-                    response += "That's great! Are you looking for something specific from this vendor's collection?";
-                } else if (userMsg.toLowerCase().includes('order')) {
-                    response += "I can help track your order. Please provide your order ID.";
-                } else {
-                    response += "How else can I assist you today?";
-                }
-                setChatHistory(prev => [...prev, { sender: 'bot', text: response }]);
-            } else {
-                const res = await api.sendChatMessage(userMsg);
-                setChatHistory(prev => [...prev, { sender: 'bot', text: res.response }]);
-            }
+            const res = await api.sendChatMessage(userMsg);
+            setChatHistory(prev => [...prev, { sender: 'bot', text: res.response }]);
         } catch (e) {
             setChatHistory(prev => [...prev, { sender: 'bot', text: "Service temporary unavailable. Please try again." }]);
-            setMessages(prev => [...prev, { text: "Service temporary unavailable. Please try again.", isUser: false }]);
         } finally {
             setIsTyping(false);
         }
@@ -85,6 +70,12 @@ const ChatbotWidget = () => {
         await processResponse(userMsg);
     };
 
+    const handleNewChat = () => {
+        setChatHistory([
+            { sender: 'bot', text: 'Hello! I am ready for a new conversation. How can I help you today?' }
+        ]);
+    };
+
     return (
         <div style={styles.container}>
             {!isOpen && (
@@ -95,51 +86,83 @@ const ChatbotWidget = () => {
 
             {isOpen && (
                 <div style={styles.chatWindow}>
-                    <div style={styles.header}>
-                        <div style={styles.headerInfo}>
-                            <div style={styles.avatar}>
-                                <MessageSquare size={16} color="var(--brand-primary)" />
-                            </div>
-                            <div>
-                                <h4 style={{ margin: 0, fontSize: '0.9rem' }}>TradeLink</h4>
-                                <p style={{ margin: 0, fontSize: '0.65rem', color: '#cbd5e1', letterSpacing: '0.05em' }}>ONLINE CONCIERGE</p>
+                    {/* Sidebar */}
+                    <div style={styles.sidebar}>
+                        <button style={styles.newChatBtn} onClick={handleNewChat}>
+                            <Plus size={18} /> New Chat
+                        </button>
+                        
+                        <div style={styles.sidebarLabel}>RECENT CONVERSATIONS</div>
+                        <div style={styles.historyList}>
+                            <div style={styles.historyItem}><History size={14} /> Previous Inquiry</div>
+                            <div style={styles.historyItem}><History size={14} /> Product Search</div>
+                            <div style={styles.historyItem}><History size={14} /> Order Tracking</div>
+                        </div>
+
+                        <div style={styles.sidebarFooter}>
+                            <div style={styles.userProfile}>
+                                <div style={styles.userAvatar}>JD</div>
+                                <span>Guest User</span>
                             </div>
                         </div>
-                        <button style={styles.closeBtn} onClick={() => setIsOpen(false)}>
-                            <X size={18} color="white" />
-                        </button>
                     </div>
 
-                    <div style={styles.body}>
-                        {chatHistory.map((msg, i) => (
-                            <div key={i} style={msg.sender === 'user' ? styles.messageWrapperRight : styles.messageWrapperLeft}>
-                                <div style={msg.sender === 'user' ? styles.messageSender : styles.messageReceiver}>
-                                    <p style={{ margin: 0 }}>{msg.text}</p>
+                    {/* Main Chat Area */}
+                    <div style={styles.mainArea}>
+                        <div style={styles.header}>
+                            <div style={styles.headerInfo}>
+                                <div style={styles.avatar}>
+                                    <Sparkles size={16} color="var(--brand-primary)" />
+                                </div>
+                                <div>
+                                    <h4 style={{ margin: 0, fontSize: '1rem', fontWeight: 600 }}>TradeLink AI</h4>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                        <div style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#10b981' }}></div>
+                                        <p style={{ margin: 0, fontSize: '0.7rem', color: '#cbd5e1' }}>Online Assistance</p>
+                                    </div>
                                 </div>
                             </div>
-                        ))}
-                        {isTyping && (
-                            <div style={styles.messageWrapperLeft}>
-                                <div style={{ ...styles.messageReceiver, fontStyle: 'italic', color: '#94a3b8' }}>
-                                    <p style={{ margin: 0 }}>Typing...</p>
-                                </div>
-                            </div>
-                        )}
-                        <div ref={messagesEndRef} />
-                    </div>
+                            <button style={styles.closeBtn} onClick={() => setIsOpen(false)}>
+                                <X size={20} color="white" />
+                            </button>
+                        </div>
 
-                    <div style={styles.inputArea}>
-                        <input
-                            type="text"
-                            placeholder="Type your message..."
-                            style={styles.input}
-                            value={message}
-                            onChange={(e) => setMessage(e.target.value)}
-                            onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-                        />
-                        <button style={styles.sendBtn} onClick={handleSend} disabled={isTyping}>
-                            <Send size={18} color={isTyping ? "#cbd5e1" : "var(--brand-primary)"} />
-                        </button>
+                        <div style={styles.body}>
+                            {chatHistory.map((msg, i) => (
+                                <div key={i} style={msg.sender === 'user' ? styles.messageWrapperRight : styles.messageWrapperLeft}>
+                                    <div style={msg.sender === 'user' ? styles.messageSender : styles.messageReceiver}>
+                                        <p style={{ margin: 0, lineHeight: 1.5 }}>{msg.text}</p>
+                                    </div>
+                                </div>
+                            ))}
+                            {isTyping && (
+                                <div style={styles.messageWrapperLeft}>
+                                    <div style={{ ...styles.messageReceiver, fontStyle: 'italic', color: '#94a3b8' }}>
+                                        <p style={{ margin: 0 }}>AI is thinking...</p>
+                                    </div>
+                                </div>
+                            )}
+                            <div ref={messagesEndRef} />
+                        </div>
+
+                        <div style={styles.inputArea}>
+                            <div style={styles.inputContainer}>
+                                <input
+                                    type="text"
+                                    placeholder="Message TradeLink AI..."
+                                    style={styles.input}
+                                    value={message}
+                                    onChange={(e) => setMessage(e.target.value)}
+                                    onKeyDown={(e) => e.key === 'Enter' && handleSend()}
+                                />
+                                <button style={styles.sendBtn} onClick={handleSend} disabled={isTyping || !message.trim()}>
+                                    <Send size={18} color={isTyping || !message.trim() ? "#cbd5e1" : "var(--brand-primary)"} />
+                                </button>
+                            </div>
+                            <p style={{ fontSize: '0.65rem', color: '#94a3b8', marginTop: '8px', textAlign: 'center' }}>
+                                TradeLink AI can make mistakes. Check important info.
+                            </p>
+                        </div>
                     </div>
                 </div>
             )}
@@ -162,23 +185,98 @@ const styles = {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        boxShadow: 'var(--shadow-lg)',
+        boxShadow: '0 4px 20px rgba(0,0,0,0.15)',
         cursor: 'pointer',
-        transition: 'transform 0.2s',
+        border: 'none',
+        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
     },
     chatWindow: {
-        width: '350px',
-        height: '500px',
+        width: '900px',
+        height: '700px',
         backgroundColor: 'var(--bg-card)',
-        borderRadius: 'var(--radius-md)',
-        boxShadow: 'var(--shadow-lg)',
+        borderRadius: '16px',
+        boxShadow: '0 10px 40px rgba(0,0,0,0.2)',
+        display: 'flex',
+        overflow: 'hidden',
+        border: '1px solid rgba(255,255,255,0.1)',
+    },
+    sidebar: {
+        width: '260px',
+        backgroundColor: '#202123',
+        padding: '16px',
         display: 'flex',
         flexDirection: 'column',
-        overflow: 'hidden',
+        color: 'white',
+    },
+    newChatBtn: {
+        display: 'flex',
+        alignItems: 'center',
+        gap: '12px',
+        width: '100%',
+        padding: '12px',
+        borderRadius: '8px',
+        border: '1px solid #4d4d4f',
+        backgroundColor: 'transparent',
+        color: 'white',
+        fontSize: '0.9rem',
+        cursor: 'pointer',
+        transition: 'background-color 0.2s',
+        marginBottom: '20px',
+    },
+    sidebarLabel: {
+        fontSize: '0.7rem',
+        color: '#8e8ea0',
+        fontWeight: 600,
+        marginBottom: '12px',
+        paddingLeft: '4px',
+    },
+    historyList: {
+        flex: 1,
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '4px',
+    },
+    historyItem: {
+        display: 'flex',
+        alignItems: 'center',
+        gap: '12px',
+        padding: '10px 12px',
+        borderRadius: '8px',
+        fontSize: '0.85rem',
+        color: '#ececf1',
+        cursor: 'pointer',
+        transition: 'background-color 0.2s',
+    },
+    sidebarFooter: {
+        borderTop: '1px solid #4d4d4f',
+        paddingTop: '16px',
+    },
+    userProfile: {
+        display: 'flex',
+        alignItems: 'center',
+        gap: '12px',
+        fontSize: '0.9rem',
+    },
+    userAvatar: {
+        width: '32px',
+        height: '32px',
+        borderRadius: '4px',
+        backgroundColor: '#ab68ff',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        fontSize: '0.75rem',
+        fontWeight: 600,
+    },
+    mainArea: {
+        flex: 1,
+        display: 'flex',
+        flexDirection: 'column',
+        backgroundColor: '#f9fafb',
     },
     header: {
         backgroundColor: 'var(--brand-primary)',
-        padding: '16px',
+        padding: '20px 24px',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
@@ -187,80 +285,98 @@ const styles = {
     headerInfo: {
         display: 'flex',
         alignItems: 'center',
-        gap: '12px',
+        gap: '16px',
     },
     avatar: {
-        width: '32px',
-        height: '32px',
+        width: '36px',
+        height: '36px',
         backgroundColor: 'white',
-        borderRadius: '50%',
+        borderRadius: '10px',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
+        boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
     },
     closeBtn: {
         backgroundColor: 'transparent',
         border: 'none',
         cursor: 'pointer',
+        opacity: 0.8,
+        transition: 'opacity 0.2s',
     },
     body: {
         flex: 1,
-        padding: '16px',
-        backgroundColor: '#f8fafc',
+        padding: '24px',
         overflowY: 'auto',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '16px',
     },
     messageReceiver: {
         backgroundColor: 'white',
-        padding: '12px 16px',
-        borderRadius: '12px',
-        borderBottomLeftRadius: '0',
-        fontSize: '0.85rem',
-        color: 'var(--text-main)',
-        border: '1px solid #e2e8f0',
-        maxWidth: '85%',
-        alignSelf: 'flex-start',
+        padding: '14px 18px',
+        borderRadius: '16px',
+        borderBottomLeftRadius: '2px',
+        fontSize: '0.95rem',
+        color: '#334155',
+        boxShadow: '0 2px 5px rgba(0,0,0,0.03)',
+        border: '1px solid #e5e7eb',
+        maxWidth: '80%',
     },
     messageSender: {
         backgroundColor: 'var(--brand-primary)',
-        padding: '12px 16px',
-        borderRadius: '12px',
-        borderBottomRightRadius: '0',
-        fontSize: '0.85rem',
+        padding: '14px 18px',
+        borderRadius: '16px',
+        borderBottomRightRadius: '2px',
+        fontSize: '0.95rem',
         color: 'white',
-        maxWidth: '85%',
+        boxShadow: '0 2px 10px rgba(0,0,0,0.1)',
+        maxWidth: '80%',
     },
     messageWrapperLeft: {
         display: 'flex',
         justifyContent: 'flex-start',
-        marginBottom: '12px',
     },
     messageWrapperRight: {
         display: 'flex',
         justifyContent: 'flex-end',
-        marginBottom: '12px',
     },
     inputArea: {
-        padding: '16px',
+        padding: '24px',
+        borderTop: '1px solid #e5e7eb',
+        backgroundColor: 'white',
+    },
+    inputContainer: {
+        maxWidth: '768px',
+        margin: '0 auto',
+        position: 'relative',
         display: 'flex',
         alignItems: 'center',
-        gap: '12px',
-        borderTop: '1px solid #e2e8f0',
+        backgroundColor: 'white',
+        borderRadius: '12px',
+        border: '1px solid #e5e7eb',
+        boxShadow: '0 2px 15px rgba(0,0,0,0.05)',
+        padding: '4px 8px',
     },
     input: {
         flex: 1,
-        padding: '10px 16px',
-        borderRadius: '20px',
-        border: '1px solid #e2e8f0',
+        padding: '12px 16px',
+        border: 'none',
         outline: 'none',
-        fontSize: '0.85rem',
+        fontSize: '1rem',
+        backgroundColor: 'transparent',
     },
     sendBtn: {
+        width: '40px',
+        height: '40px',
+        borderRadius: '8px',
         backgroundColor: 'transparent',
         border: 'none',
         cursor: 'pointer',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
+        transition: 'all 0.2s',
     }
 };
 
