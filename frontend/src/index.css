@@ -453,3 +453,113 @@ h4,
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 }
+
+/* Antigravity Premium Design Tokens - V2 (Deluxe) */
+:root {
+  --ag-glass-deluxe: rgba(255, 255, 255, 0.05);
+  --ag-glass-surface: rgba(255, 255, 255, 0.08);
+  --ag-glass-luminous: rgba(255, 255, 255, 0.15);
+  --ag-blur-deluxe: 30px;
+  
+  --ag-primary-vibrant: #4f46e5; /* Indigo 600 */
+  --ag-accent-electric: #8b5cf6; /* Violet 500 */
+  --ag-text-bright: #ffffff;
+  --ag-text-soft: #94a3b8;
+  
+  --ag-gradient-mesh: linear-gradient(135deg, #4f46e5 0%, #8b5cf6 50%, #4f46e5 100%);
+  --ag-glow-soft: 0 8px 32px rgba(79, 70, 229, 0.2);
+}
+
+/* Deluxe Glass Component */
+.ag-p-glass {
+  background: var(--ag-glass-surface);
+  backdrop-filter: blur(var(--ag-blur-deluxe));
+  -webkit-backdrop-filter: blur(var(--ag-blur-deluxe));
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.07);
+}
+
+/* Animations */
+@keyframes meshGradient {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+.ag-mesh-bg {
+  background-size: 200% 200% !important;
+  animation: meshGradient 8s ease infinite !important;
+}
+
+@keyframes slideUpDeluxe {
+  0% { transform: translateY(40px) scale(0.96); opacity: 0; }
+  100% { transform: translateY(0) scale(1); opacity: 1; }
+}
+
+.ag-slide-up-deluxe {
+  animation: slideUpDeluxe 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes messageAppearDeluxe {
+  0% { transform: translateX(15px) scale(0.98); opacity: 0; }
+  100% { transform: translateX(0) scale(1); opacity: 1; }
+}
+
+.ag-message-deluxe {
+  animation: messageAppearDeluxe 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes floatDeluxe {
+  0% { transform: translateY(0px) rotate(0deg); }
+  50% { transform: translateY(-12px) rotate(2deg); }
+  100% { transform: translateY(0px) rotate(0deg); }
+}
+
+.ag-float-deluxe {
+  animation: floatDeluxe 4s ease-in-out infinite;
+}
+
+.ag-thinking-wave {
+  display: flex;
+  gap: 4px;
+}
+
+.ag-dot-wave {
+  width: 6px;
+  height: 6px;
+  background: var(--ag-primary-vibrant);
+  border-radius: 50%;
+  animation: wave 1.2s infinite ease-in-out;
+}
+
+.ag-dot-wave:nth-child(2) { animation-delay: 0.2s; }
+.ag-dot-wave:nth-child(3) { animation-delay: 0.4s; }
+
+@keyframes wave {
+  0%, 60%, 100% { transform: translateY(0) scale(0.8); opacity: 0.5; }
+  30% { transform: translateY(-6px) scale(1.1); opacity: 1; }
+}
+
+/* Premium Scrollbar for Chatbot */
+.premium-scroll {
+  overflow-y: auto !important;
+}
+
+.premium-scroll::-webkit-scrollbar {
+  width: 5px;
+}
+
+.premium-scroll::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.02);
+  border-radius: 10px;
+}
+
+.premium-scroll::-webkit-scrollbar-thumb {
+  background: rgba(79, 70, 229, 0.2);
+  border-radius: 10px;
+  transition: background 0.3s;
+}
+
+.premium-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(79, 70, 229, 0.4);
+}

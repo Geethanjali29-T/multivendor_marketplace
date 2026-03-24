@@ -9,6 +9,7 @@ const ChatbotWidget = () => {
         { sender: 'bot', text: 'Hello! Welcome to TradeLink. How can I assist you today with our marketplace?' }
     ]);
     const [isTyping, setIsTyping] = useState(false);
+    const [searchResults, setSearchResults] = useState([]); // Array of product objects
 
     // Auto-scroll to bottom
     const messagesEndRef = useRef(null);
@@ -29,14 +30,76 @@ const ChatbotWidget = () => {
 
     const processResponse = async (userMsg) => {
         setIsTyping(true);
-        try {
-            const res = await api.sendChatMessage(userMsg);
-            setChatHistory(prev => [...prev, { sender: 'bot', text: res.response }]);
-        } catch (e) {
-            setChatHistory(prev => [...prev, { sender: 'bot', text: "Service temporary unavailable. Please try again." }]);
-        } finally {
-            setIsTyping(false);
+        setSearchResults([]); // Reset results for new query
+        
+        // Simulating network delay for a more premium "AI" feel
+        await new Promise(resolve => setTimeout(resolve, 800));
+
+        const input = userMsg.toLowerCase();
+        let response = "";
+        let foundProducts = [];
+
+        // Check for product search intent
+        const categories = ['mobiles', 'fashion', 'electronics', 'appliances', 'home & kitchen', 'beauty', 'sports', 'toys', 'grocery', 'healthcare', 'education'];
+        const matchedCategory = categories.find(cat => input.includes(cat));
+        const isPriceSearch = input.includes("price") || input.includes("cheap") || input.includes("low") || input.includes("expensive") || input.includes("high");
+
+        if (matchedCategory || isPriceSearch) {
+            try {
+                const allProducts = await api.getProducts();
+                let filtered = allProducts;
+
+                // 1. Category Filter
+                if (matchedCategory) {
+                    filtered = filtered.filter(p => p.category?.toLowerCase().includes(matchedCategory));
+                }
+
+                // 2. Price Filter/Sort
+                if (input.includes("low") || input.includes("cheap")) {
+                    filtered.sort((a, b) => parseFloat(a.price) - parseFloat(b.price));
+                } else if (input.includes("high") || input.includes("expensive")) {
+                    filtered.sort((a, b) => parseFloat(b.price) - parseFloat(a.price));
+                }
+
+                foundProducts = filtered.slice(0, 3); // Top 3 results
+                
+                if (foundProducts.length > 0) {
+                    const catName = matchedCategory ? matchedCategory.charAt(0).toUpperCase() + matchedCategory.slice(1) : "premium items";
+                    response = `I found some ${input.includes("low") || input.includes("cheap") ? "budget-friendly" : "high-end"} ${catName} for you. Take a look!`;
+                    setSearchResults(foundProducts);
+                } else {
+                    response = "I couldn't find any products matching those specific criteria. Would you like to see our latest arrivals instead?";
+                }
+            } catch (err) {
+                console.error("Search failed", err);
+                response = "I'm having a bit of trouble accessing the product catalog right now. Please try again in a moment.";
+            }
+        } else if (input.includes("motto") || input.includes("mission") || input.includes("purpose")) {
+            response = "Our motto is: 'Bridging local businesses with global digital standards.' We empower merchants with premium digital storefronts.";
+        } else if (input.includes("tradelink") || input.includes("what is this") || input.includes("project")) {
+            response = "TradeLink is a high-end multi-vendor marketplace designed to bring professional digital standards to local commerce.";
+        } else if (input.includes("vendor") || input.includes("seller") || input.includes("register")) {
+            response = "Vendors can register via the 'Merchant Portal' and set up their premium shops. Registration requires a simple verification process.";
+        } else if (input.includes("secure") || input.includes("safe") || input.includes("payment")) {
+            response = "Yes, TradeLink uses industry-standard security and encrypted payment gateways like Razorpay to ensure all transactions are protected.";
+        } else if (input.includes("ai") || input.includes("support")) {
+            response = "Our AI Online Concierge provides real-time support, personalized product recommendations, and automated notifications for a premium buyer experience.";
+        } else if (input.includes("buyer") || input.includes("customer") || input.includes("shop")) {
+            response = "As a buyer, you can explore premium local brands, enjoy a secure checkout experience, and receive AI-powered personalized notifications.";
+        } else if (input.includes("how it works") || input.includes("feature")) {
+            response = "TradeLink bridges the gap between local shops and digital shoppers using advanced search, personalized AI support, and robust role-based dashboards.";
+        } else if (input.includes("hi") || input.includes("hello") || input.includes("hey")) {
+            response = "Hello! I'm your TradeLink concierge. How can I guide you through our premium marketplace today?";
+        } else {
+            response = "I'm specialized in TradeLink's ecosystem and motto. Could you ask me about our mission, or how vendors and buyers benefit from our platform?";
         }
+
+        setChatHistory(prev => [...prev, { 
+            sender: 'bot', 
+            text: response, 
+            products: foundProducts.length > 0 ? foundProducts : null 
+        }]);
+        setIsTyping(false);
     };
 
     useEffect(() => {
@@ -62,9 +125,11 @@ const ChatbotWidget = () => {
         };
     }, []); // Run once on mount to expose the function
 
-    const handleSend = async () => {
-        if (!message.trim()) return;
-        const userMsg = message.trim();
+    const handleSend = async (customMsg) => {
+        const msgToSend = typeof customMsg === 'string' ? customMsg : message;
+        if (!msgToSend.trim()) return;
+        
+        const userMsg = msgToSend.trim();
         setChatHistory(prev => [...prev, { sender: 'user', text: userMsg }]);
         setMessage('');
         await processResponse(userMsg);
@@ -76,69 +141,95 @@ const ChatbotWidget = () => {
         ]);
     };
 
+    const faqs = [
+        "What is TradeLink's Motto?",
+        "How do I register as a Vendor?",
+        "Is the marketplace secure?",
+        "How does AI support work?"
+    ];
+
     return (
         <div style={styles.container}>
             {!isOpen && (
-                <button style={styles.toggleButton} onClick={() => setIsOpen(true)}>
-                    <MessageSquare size={24} color="white" />
+                <button 
+                    style={styles.toggleButton} 
+                    className="ag-float-deluxe ag-mesh-bg" 
+                    onClick={() => setIsOpen(true)}
+                >
+                    <div style={styles.toggleGlow}></div>
+                    <Sparkles size={30} color="white" fill="white" style={{ position: 'relative', zIndex: 2 }} />
                 </button>
             )}
 
             {isOpen && (
-                <div style={styles.chatWindow}>
-                    {/* Sidebar */}
-                    <div style={styles.sidebar}>
-                        <button style={styles.newChatBtn} onClick={handleNewChat}>
-                            <Plus size={18} /> New Chat
-                        </button>
-                        
-                        <div style={styles.sidebarLabel}>RECENT CONVERSATIONS</div>
-                        <div style={styles.historyList}>
-                            <div style={styles.historyItem}><History size={14} /> Previous Inquiry</div>
-                            <div style={styles.historyItem}><History size={14} /> Product Search</div>
-                            <div style={styles.historyItem}><History size={14} /> Order Tracking</div>
-                        </div>
-
-                        <div style={styles.sidebarFooter}>
-                            <div style={styles.userProfile}>
-                                <div style={styles.userAvatar}>JD</div>
-                                <span>Guest User</span>
+                <div style={styles.chatWindow} className="ag-slide-up-deluxe">
+                    {/* Header */}
+                    <div style={styles.header} className="ag-mesh-bg">
+                        <div style={styles.headerInfo}>
+                            <div style={styles.avatar}>
+                                <Sparkles size={20} color="white" fill="white" />
+                            </div>
+                            <div>
+                                <h4 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 800, color: 'white', letterSpacing: '-0.02em' }}>TradeLink</h4>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '2px' }}>
+                                    <div style={{ width: '6px', height: '6px', background: '#10b981', borderRadius: '50%' }}></div>
+                                    <p style={{ margin: 0, fontSize: '0.65rem', color: 'rgba(255,255,255,0.85)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em' }}>Online Concierge</p>
+                                </div>
                             </div>
                         </div>
+                        <button style={styles.closeBtn} onClick={() => setIsOpen(false)}>
+                            <X size={18} color="white" />
+                        </button>
                     </div>
 
-                    {/* Main Chat Area */}
+                    {/* Chat Area */}
                     <div style={styles.mainArea}>
-                        <div style={styles.header}>
-                            <div style={styles.headerInfo}>
-                                <div style={styles.avatar}>
-                                    <Sparkles size={16} color="var(--brand-primary)" />
-                                </div>
-                                <div>
-                                    <h4 style={{ margin: 0, fontSize: '1rem', fontWeight: 600 }}>TradeLink AI</h4>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                        <div style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#10b981' }}></div>
-                                        <p style={{ margin: 0, fontSize: '0.7rem', color: '#cbd5e1' }}>Online Assistance</p>
-                                    </div>
-                                </div>
-                            </div>
-                            <button style={styles.closeBtn} onClick={() => setIsOpen(false)}>
-                                <X size={20} color="white" />
-                            </button>
-                        </div>
-
-                        <div style={styles.body}>
+                        <div style={styles.body} className="premium-scroll">
                             {chatHistory.map((msg, i) => (
-                                <div key={i} style={msg.sender === 'user' ? styles.messageWrapperRight : styles.messageWrapperLeft}>
+                                <div key={i} style={msg.sender === 'user' ? styles.messageWrapperRight : styles.messageWrapperLeft} className="ag-message-deluxe">
                                     <div style={msg.sender === 'user' ? styles.messageSender : styles.messageReceiver}>
-                                        <p style={{ margin: 0, lineHeight: 1.5 }}>{msg.text}</p>
+                                        <p style={{ margin: 0, lineHeight: 1.5, fontSize: '0.9rem' }}>{msg.text}</p>
+                                        
+                                        {/* Inline Product Showcase */}
+                                        {msg.products && (
+                                            <div style={styles.productShowcase}>
+                                                {msg.products.map((p, idx) => (
+                                                    <div key={idx} style={styles.miniProductCard} onClick={() => window.location.href = `/?search=${p.name}`}>
+                                                        <img src={p.image} alt={p.name} style={styles.miniProductImg} />
+                                                        <div style={styles.miniProductInfo}>
+                                                            <div style={styles.miniProductName}>{p.name}</div>
+                                                            <div style={styles.miniProductPrice}>₹{p.price}</div>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
                             ))}
+                            
+                            {/* FAQ Chips - Only show at the start */}
+                            {chatHistory.length === 1 && (
+                                <div style={styles.faqContainer}>
+                                    <p style={styles.faqTitle}>Frequently Asked Questions</p>
+                                    <div style={styles.faqGrid}>
+                                        {faqs.map((faq, idx) => (
+                                            <button key={idx} style={styles.faqChip} onClick={() => handleSend(faq)}>
+                                                {faq}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
                             {isTyping && (
-                                <div style={styles.messageWrapperLeft}>
-                                    <div style={{ ...styles.messageReceiver, fontStyle: 'italic', color: '#94a3b8' }}>
-                                        <p style={{ margin: 0 }}>AI is thinking...</p>
+                                <div style={styles.messageWrapperLeft} className="ag-message-deluxe">
+                                    <div style={styles.messageReceiver}>
+                                        <div className="ag-thinking-wave">
+                                            <div className="ag-dot-wave"></div>
+                                            <div className="ag-dot-wave"></div>
+                                            <div className="ag-dot-wave"></div>
+                                        </div>
                                     </div>
                                 </div>
                             )}
@@ -149,19 +240,16 @@ const ChatbotWidget = () => {
                             <div style={styles.inputContainer}>
                                 <input
                                     type="text"
-                                    placeholder="Message TradeLink AI..."
+                                    placeholder="Type your message..."
                                     style={styles.input}
                                     value={message}
                                     onChange={(e) => setMessage(e.target.value)}
                                     onKeyDown={(e) => e.key === 'Enter' && handleSend()}
                                 />
-                                <button style={styles.sendBtn} onClick={handleSend} disabled={isTyping || !message.trim()}>
-                                    <Send size={18} color={isTyping || !message.trim() ? "#cbd5e1" : "var(--brand-primary)"} />
+                                <button style={styles.sendBtn} onClick={() => handleSend()} disabled={isTyping || !message.trim()} className="ag-mesh-bg">
+                                    <Send size={18} color="white" />
                                 </button>
                             </div>
-                            <p style={{ fontSize: '0.65rem', color: '#94a3b8', marginTop: '8px', textAlign: 'center' }}>
-                                TradeLink AI can make mistakes. Check important info.
-                            </p>
                         </div>
                     </div>
                 </div>
@@ -176,162 +264,95 @@ const styles = {
         bottom: '30px',
         right: '30px',
         zIndex: 1000,
+        fontFamily: "'Outfit', sans-serif",
     },
     toggleButton: {
-        width: '60px',
-        height: '60px',
-        borderRadius: '50%',
-        backgroundColor: 'var(--brand-primary)',
+        width: '68px',
+        height: '68px',
+        borderRadius: '24px',
+        background: 'var(--ag-gradient-mesh)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        boxShadow: '0 4px 20px rgba(0,0,0,0.15)',
+        boxShadow: '0 8px 32px rgba(79, 70, 229, 0.3)',
         cursor: 'pointer',
-        border: 'none',
-        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+        border: '1px solid rgba(255,255,255,0.2)',
+        position: 'relative',
+        transition: 'all 0.5s cubic-bezier(0.16, 1, 0.3, 1)',
+        overflow: 'hidden',
+    },
+    toggleGlow: {
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        background: 'radial-gradient(circle at center, rgba(255,255,255,0.2) 0%, transparent 70%)',
+        animation: 'ag-pulse-glow 3s infinite',
     },
     chatWindow: {
-        width: '900px',
-        height: '700px',
-        backgroundColor: 'var(--bg-card)',
-        borderRadius: '16px',
-        boxShadow: '0 10px 40px rgba(0,0,0,0.2)',
+        width: '400px',
+        height: '520px',
+        background: '#ffffff',
+        borderRadius: '32px',
+        boxShadow: '0 30px 90px rgba(0,0,0,0.18)',
         display: 'flex',
+        flexDirection: 'column',
         overflow: 'hidden',
-        border: '1px solid rgba(255,255,255,0.1)',
+        border: '1px solid rgba(0,0,0,0.06)',
     },
-    sidebar: {
-        width: '260px',
-        backgroundColor: '#202123',
-        padding: '16px',
-        display: 'flex',
-        flexDirection: 'column',
-        color: 'white',
-    },
-    newChatBtn: {
+    header: {
+        padding: '24px 28px',
         display: 'flex',
         alignItems: 'center',
-        gap: '12px',
-        width: '100%',
-        padding: '12px',
-        borderRadius: '8px',
-        border: '1px solid #4d4d4f',
-        backgroundColor: 'transparent',
-        color: 'white',
-        fontSize: '0.9rem',
-        cursor: 'pointer',
-        transition: 'background-color 0.2s',
-        marginBottom: '20px',
+        justifyContent: 'space-between',
+        background: 'var(--ag-gradient-mesh)',
+        position: 'relative',
     },
-    sidebarLabel: {
-        fontSize: '0.7rem',
-        color: '#8e8ea0',
-        fontWeight: 600,
-        marginBottom: '12px',
-        paddingLeft: '4px',
-    },
-    historyList: {
-        flex: 1,
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '4px',
-    },
-    historyItem: {
+    headerInfo: {
         display: 'flex',
         alignItems: 'center',
-        gap: '12px',
-        padding: '10px 12px',
-        borderRadius: '8px',
-        fontSize: '0.85rem',
-        color: '#ececf1',
-        cursor: 'pointer',
-        transition: 'background-color 0.2s',
+        gap: '14px',
     },
-    sidebarFooter: {
-        borderTop: '1px solid #4d4d4f',
-        paddingTop: '16px',
-    },
-    userProfile: {
-        display: 'flex',
-        alignItems: 'center',
-        gap: '12px',
-        fontSize: '0.9rem',
-    },
-    userAvatar: {
-        width: '32px',
-        height: '32px',
-        borderRadius: '4px',
-        backgroundColor: '#ab68ff',
+    avatar: {
+        width: '36px',
+        height: '36px',
+        background: 'rgba(255,255,255,0.15)',
+        borderRadius: '12px',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        fontSize: '0.75rem',
-        fontWeight: 600,
+        backdropFilter: 'blur(8px)',
+        border: '1px solid rgba(255,255,255,0.1)',
+    },
+    closeBtn: {
+        backgroundColor: 'rgba(255,255,255,0.15)',
+        width: '32px',
+        height: '32px',
+        borderRadius: '50%',
+        border: 'none',
+        cursor: 'pointer',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        transition: 'all 0.2s',
     },
     mainArea: {
         flex: 1,
         display: 'flex',
         flexDirection: 'column',
-        backgroundColor: '#f9fafb',
-    },
-    header: {
-        backgroundColor: 'var(--brand-primary)',
-        padding: '20px 24px',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        color: 'white',
-    },
-    headerInfo: {
-        display: 'flex',
-        alignItems: 'center',
-        gap: '16px',
-    },
-    avatar: {
-        width: '36px',
-        height: '36px',
-        backgroundColor: 'white',
-        borderRadius: '10px',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-    },
-    closeBtn: {
-        backgroundColor: 'transparent',
-        border: 'none',
-        cursor: 'pointer',
-        opacity: 0.8,
-        transition: 'opacity 0.2s',
+        background: 'linear-gradient(to bottom, #ffffff 0%, #f1f5f9 100%)',
+        minHeight: 0, // CRITICAL: Allows flex child to shrink/scroll
+        overflow: 'hidden',
     },
     body: {
         flex: 1,
-        padding: '24px',
+        padding: '28px',
         overflowY: 'auto',
         display: 'flex',
         flexDirection: 'column',
-        gap: '16px',
-    },
-    messageReceiver: {
-        backgroundColor: 'white',
-        padding: '14px 18px',
-        borderRadius: '16px',
-        borderBottomLeftRadius: '2px',
-        fontSize: '0.95rem',
-        color: '#334155',
-        boxShadow: '0 2px 5px rgba(0,0,0,0.03)',
-        border: '1px solid #e5e7eb',
-        maxWidth: '80%',
-    },
-    messageSender: {
-        backgroundColor: 'var(--brand-primary)',
-        padding: '14px 18px',
-        borderRadius: '16px',
-        borderBottomRightRadius: '2px',
-        fontSize: '0.95rem',
-        color: 'white',
-        boxShadow: '0 2px 10px rgba(0,0,0,0.1)',
-        maxWidth: '80%',
+        gap: '20px',
+        minHeight: 0, // CRITICAL: Ensures this area is the one that scrolls
     },
     messageWrapperLeft: {
         display: 'flex',
@@ -341,42 +362,144 @@ const styles = {
         display: 'flex',
         justifyContent: 'flex-end',
     },
-    inputArea: {
-        padding: '24px',
-        borderTop: '1px solid #e5e7eb',
-        backgroundColor: 'white',
+    messageReceiver: {
+        background: '#ffffff',
+        padding: '14px 20px',
+        borderRadius: '20px',
+        borderBottomLeftRadius: '4px',
+        color: '#334155',
+        border: '1px solid #e2e8f0',
+        maxWidth: '85%',
+        boxShadow: '0 4px 15px rgba(0,0,0,0.03)',
+        fontSize: '0.92rem',
+        lineHeight: 1.6,
     },
-    inputContainer: {
-        maxWidth: '768px',
-        margin: '0 auto',
-        position: 'relative',
+    messageSender: {
+        background: 'var(--ag-gradient-mesh)',
+        padding: '14px 20px',
+        borderRadius: '20px',
+        borderBottomRightRadius: '4px',
+        color: 'white',
+        maxWidth: '85%',
+        boxShadow: '0 8px 25px rgba(79, 70, 229, 0.25)',
+        fontSize: '0.92rem',
+        lineHeight: 1.6,
+        fontWeight: 500,
+    },
+    faqContainer: {
+        margin: '12px 0 8px 0',
+        padding: '16px',
+        background: 'rgba(79, 70, 229, 0.03)',
+        borderRadius: '20px',
+        border: '1px dashed rgba(79, 70, 229, 0.15)',
+    },
+    faqTitle: {
+        fontSize: '0.7rem',
+        color: 'var(--ag-primary-vibrant)',
+        fontWeight: 800,
+        marginBottom: '12px',
+        textTransform: 'uppercase',
+        letterSpacing: '0.1em',
+        textAlign: 'center',
+    },
+    faqGrid: {
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '10px',
+    },
+    faqChip: {
+        background: 'white',
+        border: '1px solid #e0e7ff',
+        padding: '12px 18px',
+        borderRadius: '16px',
+        fontSize: '0.85rem',
+        color: '#1e1b4b',
+        textAlign: 'left',
+        cursor: 'pointer',
+        transition: 'all 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
+        boxShadow: '0 2px 8px rgba(0,0,0,0.02)',
+        fontWeight: 600,
         display: 'flex',
         alignItems: 'center',
-        backgroundColor: 'white',
-        borderRadius: '12px',
-        border: '1px solid #e5e7eb',
-        boxShadow: '0 2px 15px rgba(0,0,0,0.05)',
-        padding: '4px 8px',
+        justifyContent: 'space-between',
+    },
+    productShowcase: {
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '10px',
+        marginTop: '16px',
+        paddingTop: '16px',
+        borderTop: '1px solid rgba(0,0,0,0.05)',
+    },
+    miniProductCard: {
+        display: 'flex',
+        alignItems: 'center',
+        gap: '14px',
+        background: 'rgba(255,255,255,0.7)',
+        padding: '10px',
+        borderRadius: '14px',
+        cursor: 'pointer',
+        transition: 'all 0.2s',
+        border: '1px solid #f1f5f9',
+        boxShadow: '0 4px 12px rgba(0,0,0,0.03)',
+    },
+    miniProductImg: {
+        width: '48px',
+        height: '48px',
+        borderRadius: '10px',
+        objectFit: 'cover',
+        boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+    },
+    miniProductInfo: {
+        flex: 1,
+        overflow: 'hidden',
+    },
+    miniProductName: {
+        fontSize: '0.85rem',
+        fontWeight: 700,
+        color: '#0f172a',
+        marginBottom: '2px',
+    },
+    miniProductPrice: {
+        fontSize: '0.8rem',
+        color: 'var(--ag-primary-vibrant)',
+        fontWeight: 800,
+    },
+    inputArea: {
+        padding: '24px 28px',
+        background: '#ffffff',
+        borderTop: '1px solid #f1f5f9',
+    },
+    inputContainer: {
+        display: 'flex',
+        alignItems: 'center',
+        background: '#f8fafc',
+        borderRadius: '18px',
+        padding: '6px 16px',
+        border: '1px solid #e2e8f0',
+        transition: 'all 0.3s',
     },
     input: {
         flex: 1,
-        padding: '12px 16px',
+        padding: '12px 0',
         border: 'none',
         outline: 'none',
-        fontSize: '1rem',
-        backgroundColor: 'transparent',
+        fontSize: '0.95rem',
+        color: '#0f172a',
+        background: 'transparent',
     },
     sendBtn: {
+        background: 'var(--ag-gradient-mesh)',
         width: '40px',
         height: '40px',
-        borderRadius: '8px',
-        backgroundColor: 'transparent',
+        borderRadius: '12px',
         border: 'none',
         cursor: 'pointer',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
         transition: 'all 0.2s',
+        boxShadow: '0 4px 12px rgba(79, 70, 229, 0.2)',
     }
 };
 
