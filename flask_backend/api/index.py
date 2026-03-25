@@ -171,9 +171,9 @@ def seed_database():
 
         # create users
         users_coll.insert_many([
-            {"username": "admin", "password": "password", "role": "admin", "email": "admin@example.com"},
-            {"username": "vendor1", "password": "password", "role": "vendor", "email": "vendor@example.com"},
-            {"username": "buyer1", "password": "password", "role": "buyer", "email": "buyer@example.com"}
+            {"username": "admin", "password": generate_password_hash("password"), "role": "ADMIN", "email": "admin@example.com"},
+            {"username": "vendor1", "password": generate_password_hash("password"), "role": "VENDOR", "email": "vendor@example.com"},
+            {"username": "buyer1", "password": generate_password_hash("password"), "role": "BUYER", "email": "buyer@example.com"}
         ])
         
         # create vendors (Realistic Multi-Vendor Marketplace Partners)
